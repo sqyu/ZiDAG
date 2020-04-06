@@ -1,10 +1,10 @@
 update_progress <- function(current, total) {
   if (current == total){
-    cat("Complete.\n")
+    message("Complete.\n")
   }
   if (current > 0 && current < total){
     if (as.integer(current/total*100) != as.integer((current-1)/total*100))
-      cat(as.integer(current/total*100),"%|", sep="")
+      message(as.integer(current/total*100),"%|", sep="")
   }
 }
 
@@ -50,70 +50,25 @@ ParentsToDec <- function(parents, node) {
   return (1) ## if parents == integer(0)
 }
 
-# SLOW! Top-down, using pseudocode from paper, lots of repetition
-getLocalScores0 <- function(V, Y, parametrization, LS, vars, control=list(), pb=NULL){
-  for (v in vars){
-    LS <- getLocalScores0(V, Y, parametrization, LS, setdiff(vars, v), control, pb)
-    #LS[[v]][ParentsToDec(setdiff(vars, v), v)] <- fit(V=V, Y=Y, left=v, right=setdiff(vars, v), parametrization=parametrization, value_only=T, control=control)
-    res <- fit(V=V, Y=Y, left=v, right=setdiff(vars, v), parametrization=parametrization, value_only=F, control=control)
-    LS[v, ParentsToDec(setdiff(vars, v), v)] <- -bic_from_fit(res)
-    if (!is.null(pb)) {
-      count <<- count+1;
-      #setTxtProgressBar(pb, count)
-      update_progress(count, pb)
-    }
-  }
-  return (LS)
-}
-
 # Could have used bottom-up, but since we will eventually need to call ParentsToDec
 # , it's easier to just iterate over the indices of subsets and call DecToParents
-getLocalScores <- function(V, Y, parametrization, LS, m, control=list(), pb=NULL){
+getLocalScores <- function(V, Y, parametrization, LS, m, control=list(), pb=NULL, Silander_count=0){
   for (v in 1:m){
     Vout <- setdiff(1:m, v)
     for (i in 1:(2^(m-1))){
       parents <- Vout[DecToParents(i, Inf)]
-      res <- fit(V=V, Y=Y, left=v, right=parents, parametrization=parametrization, value_only=F, control=control)
+      res <- zi_fit(V=V, Y=Y, left=v, right=parents, parametrization=parametrization, value_only=FALSE, control=control)
       LS[v, i] <- -bic_from_fit(res)
       if (!is.null(pb)) {
-        count <<- count+1
-        #setTxtProgressBar(pb, count)
-        update_progress(count, pb)
+        Silander_count <- Silander_count+1
+        update_progress(Silander_count, pb)
       }
     }
   }
   return (LS)
 }
 
-## assuming general V, not needed
-getBestParents0 <- function(V, v, LS){
-  ## e.g. V=c(2,3,5,6), v=3
-  if (!v %in% V) {stop("v must be in V.")}
-  if (length(V)==1){return (integer(0))}
-  Vout <- setdiff(V, v) ## e.g. c(2,5,6)
-  bps <- bss <- numeric(2^(length(Vout)))
-  for (csi in 1:(2^(length(Vout)))){ # enumerating subsets of Vout
-    # e.g. csi <- 6
-    csi_par_local <- DecToParents(csi, Inf) # conv csi to positions within Vout, e.g. csi_par_local <- c(1,3)
-    cs <- Vout[csi_par_local] # true vertex indices, enumeration over subsets of V, e.g. cs <- c(2,6)
-    cs_dec <- ParentsToDec(cs, v) # true vertex indices (dec representation) of cs, e.g. c(2,6) for 3->19
-    bps[csi] <- cs_dec # e.g. bps[6] <- 19 (c(2,6))
-    bss[csi] <- LS[v,cs_dec] # e.g. bss[6] <- LS[3][19] (LS[3][c(2,6)])
-    for (cs1_out in csi_par_local){ # enumerating LOO-subsets of cs, e.g. cs1_out <- 3
-      cs1_one_out_i <- csi-2^(cs1_out-1) # index of the new subset of cs within bps and bss, e.g. cs1_one_out_i = 6-2^(3-1)=2, which is index for c(1), 1 as position within Vout, or c(2), 2 as true vertex index
-      if (bss[cs1_one_out_i] > bss[csi]){
-        bss[csi] <- bss[cs1_one_out_i]
-        bps[csi] <- bps[cs1_one_out_i]
-      }
-    }
-  }
-  return (bps)
-  # The values of bps are in dec rep of true vertex indices
-  # The true vertex indices corresponding to the indices of bps can be recovered by
-  # sapply(1:2^(length(V)-1), function(csi){setdiff(V, v)[DecToParents(csi, Inf)]})
-}
-
-getBestParents <- function(m, v, LS, pb){
+getBestParents <- function(m, v, LS, pb, Silander_count){
   Vout <- setdiff(1:m, v)
   bps <- bss <- numeric(2^(length(Vout)))
   for (csi in 1:(2^(length(Vout)))){ # enumerating subsets of Vout
@@ -123,9 +78,8 @@ getBestParents <- function(m, v, LS, pb){
     bss[csi] <- LS[v,csi] # e.g. bss[6] <- LS[3][19] (LS[3][c(2,6)])
     for (cs1_out in cs){ # enumerating LOO-subsets of cs, e.g. cs1_out <- 3
       if (!is.null(pb)){
-        count <<- count+1
-        #setTxtProgressBar(pb, count)
-        update_progress(count, pb)
+        Silander_count <- Silander_count+1
+        update_progress(Silander_count, pb)
       }
       if (cs1_out > v)
         cs1 <- csi-2^(cs1_out-2) # index of cs\{cs1_out}
@@ -142,23 +96,7 @@ getBestParents <- function(m, v, LS, pb){
   # The indices of bps are the candidate parent sets in dec representation
 }
 
-# Sanity check
-#V <- c(1,2,4);  v <- 1
-#tmp <- LS[v, ]
-#names(tmp) <- sapply(1:2^(m-1), function(i){paste(DecToParents(i, v), collapse=",")})
-# LS
-#tmp
-# Picked best parents
-#sapply(getBestParents0(V, v,LS), function(i){paste(DecToParents(i,v), collapse=",")})
-# Within
-#sapply(1:2^(length(V)-1), function(csi){paste(setdiff(V, v)[DecToParents(csi, Inf)], collapse=",")})
-
-# Sanity check if getBestParents is getBestParents0 with V=1:m
-#sapply(1:m, function(v){all(getBestParents0(1:m, v,LS) == getBestParents(m, v,LS))})
-
-
-
-getBestSinks <- function(m, bps, LS, pb){
+getBestSinks <- function(m, bps, LS, pb, Silander_count){
   scores <- numeric(2^m)
   sinks <- rep(-1, 2^m)
   for (wi in 1:(2^m)){ # index as a subset of 1:m
@@ -171,16 +109,14 @@ getBestSinks <- function(m, bps, LS, pb){
         scores[wi] <- skore; sinks[wi] <- sink
       }
       if (!is.null(pb)){
-        count <<- count+1
-        #setTxtProgressBar(pb, count)
-        update_progress(count, pb)
+        Silander_count <- Silander_count+1
+        update_progress(Silander_count, pb)
       }
     }
   }
   return (sinks)
   ## indices of sinks correspond to nodes sapply(1:2^m, function(i){DecToParents(i, Inf)})
 }
-
 
 Sinks2ord <- function(m, sinks){
   ord <- numeric(m)
@@ -202,38 +138,46 @@ Ord2net <- function(m, ord, bps){
   return (adj_mat)
 }
 
-count <- 0
-
-Silander <- function(V, Y, parametrization, verbose=F, control=list()){
+#'
+#'
+#'
+#'
+#' @param
+#' @details
+#'
+#' @return
+#' @examples
+#'
+#' @export
+ziSIMY <- function(V, Y, parametrization, verbose=FALSE, control=list()){
   n <- nrow(V)
   m <- ncol(V)
+  Silander_count <- 0
   if (verbose){
-    cat("Starting Silander.\nStep 1/5, calculating local scores...")
-    count <<- 0
-    #pb <- txtProgressBar(min=0, max=m*2^(m-1), style=3)
+    message("Starting Silander.\nStep 1/5, calculating local scores...")
     pb <- m*2^(m-1)
   }
   else {pb <- NULL}
-  LS <- getLocalScores(V, Y, parametrization, matrix(NA, m, 2^(m-1)), m, control, pb)
+  LS <- getLocalScores(V, Y, parametrization, matrix(NA, m, 2^(m-1)), m, control, pb, Silander_count)
   if (verbose){
-    cat("\nStep 2/5, calculating best parents...")
-    count <<- 0
+    message("\nStep 2/5, calculating best parents...")
+    Silander_count <- 0
     #pb <- txtProgressBar(min=0, max=m*(m-1)*2^(m-2), style=3)
     pb <- m*(m-1)*2^(m-2)
   } else {pb <- NULL}
-  bpss <- t(sapply(1:m, function(i){getBestParents(m, i, LS, pb)}))
+  bpss <- t(sapply(1:m, function(i){getBestParents(m, i, LS, pb, Silander_count)}))
   if (verbose){
-    cat("\nStep 3/5, calculating best sinks...")
-    count <<- 0
+    message("\nStep 3/5, calculating best sinks...")
+    Silander_count <- 0
     ##pb <- txtProgressBar(min=0, max=m*2^(m-1), style=3)
     pb <- m*2^(m-1)
   } else {pb <- NULL}
-  sinks <- getBestSinks(m, bpss,LS,pb)
+  sinks <- getBestSinks(m, bpss, LS, pb, Silander_count)
   if (verbose)
-    cat("\nStep 4/5, calculating best order...")
+    message("\nStep 4/5, calculating best order...")
   ord <- Sinks2ord(m, sinks)
   if (verbose)
-    cat("\nStep 5/5, calculating best graph...\nSilander done.")
+    message("\nStep 5/5, calculating best graph...\nSilander done.")
   est_enum <- Ord2net(m, ord, bpss)
   return (est_enum)
 }

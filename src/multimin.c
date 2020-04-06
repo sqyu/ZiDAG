@@ -220,8 +220,8 @@ struct g_params {
 void *multimin_alloc(size_t size){
     void *temp;
     if(!(temp = malloc(size))){
-	perror("malloc, memory allocation failed");
-	exit(1);
+	error("malloc, memory allocation failed");
+	//exit(1);
     }
     return temp;
 }
@@ -578,34 +578,34 @@ multimin(size_t n,double *x,double *fun,
    break;
    
   default:
-    fprintf(stderr,"Optimization method not recognized. Specify one of the following:\n\n");
+    error("Optimization method not recognized. Specify one of the following:\n\n\
+		  0: Fletcher-Reeves conjugate gradient\n\
+		  1: Polak-Ribiere conjugate gradient\n\
+		  2: Vector Broyden-Fletcher-Goldfarb-Shanno method\n\
+		  3: Steepest descent algorithm\n\
+		  4: Nelder-Mead simplex\n\
+		  5: Vector Broyden-Fletcher-Goldfarb-Shanno method ver. 2\n\
+		  6: Simplex algorithm of Nelder and Mead ver. 2\n\
+		  7: Simplex algorithm of Nelder and Mead: random initialization\n\
+		  or try -h\n");
 
-    fprintf(stderr,"0: Fletcher-Reeves conjugate gradient\n");
-    fprintf(stderr,"1: Polak-Ribiere conjugate gradient\n");
-    fprintf(stderr,"2: Vector Broyden-Fletcher-Goldfarb-Shanno method\n");
-    fprintf(stderr,"3: Steepest descent algorithm\n");
-    fprintf(stderr,"4: Nelder-Mead simplex\n");
-    fprintf(stderr,"5: Vector Broyden-Fletcher-Goldfarb-Shanno method ver. 2\n");
-    fprintf(stderr,"6: Simplex algorithm of Nelder and Mead ver. 2\n");
-    fprintf(stderr,"7: Simplex algorithm of Nelder and Mead: random initialization\n");
-    fprintf(stderr,"or try -h\n");
-
-    exit(EXIT_FAILURE);
+    //exit(EXIT_FAILURE);
   }
 
   /* --- OUPUT ---------------------------------- */
   if(oparams.verbosity>0){
-    fprintf(stderr,"#--- MULTIMIN START\n");
-    fprintf(stderr,"#    method                         %s\n",Tname);
+    Rprintf("#--- MULTIMIN START\n\
+		   #    method                         %s\n",Tname);
     if(oparams.method<4 || oparams.method==5){
-      fprintf(stderr,"#    initial step size              %g\n", oparams.step_size);
-      fprintf(stderr,"#    line minimization tolerance    %g\n",oparams.tol);
-      fprintf(stderr,"#    maximum number of iterations   %u\n",oparams.maxiter);
-      fprintf(stderr,"#    precision                      %g\n",oparams.epsabs);
+      Rprintf("#    initial step size              %g\n\
+             #    line minimization tolerance    %g\n\
+			 #    maximum number of iterations   %u\n\
+      		 #    precision                      %g\n",
+		oparams.step_size, oparams.tol, oparams.maxiter, oparams.epsabs);
     }
     else{
-      fprintf(stderr,"#    maximum number of iterations   %u\n",oparams.maxiter);
-      fprintf(stderr,"#    maximum simplex size           %g\n",oparams.maxsize);
+      Rprintf("#    maximum number of iterations   %u\n\
+			 #    maximum simplex size           %g\n", oparams.maxiter, oparams.maxsize);
     }
   }
   /* -------------------------------------------- */
@@ -660,49 +660,49 @@ multimin(size_t n,double *x,double *fun,
 
   /* --- OUPUT ---------------------------------- */
   if(oparams.verbosity>1){
-    fprintf(stderr,"#    - variables initial value and boundaries\n");
+    Rprintf("#    - variables initial value and boundaries\n");
     for(i=0;i<n;i++){
       if(type==NULL)
-	fprintf(stderr,"#    x[%d]=%e (-inf,+inf) trans 0 -> %e\n",(int) i,x[i],GET(y,i));
+	Rprintf("#    x[%d]=%e (-inf,+inf) trans 0 -> %e\n",(int) i,x[i],GET(y,i));
       else
 	switch(type[i]){
 	case 0:/* (-inf,+inf) */
-	  fprintf(stderr,"#    x[%d]=%e (-inf,+inf) trans 0 -> %e\n",(int) i,x[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (-inf,+inf) trans 0 -> %e\n",(int) i,x[i],GET(y,i));
 	  break;
 	case 1:/* [a,+inf) */
-	  fprintf(stderr,"#    x[%d]=%e [%g,+inf) trans 1 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e [%g,+inf) trans 1 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
 	  break;
 	case 2:/* (-inf,a] */
-	  fprintf(stderr,"#    x[%d]=%e (-inf,%g] trans 2 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (-inf,%g] trans 2 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
 	  break;
 	case 3:/* [a,b] */
-	  fprintf(stderr,"#    x[%d]=%e [%g,%g] trans 3 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e [%g,%g] trans 3 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
 	  break;
 	case 4:/* (a,+inf) */
-	  fprintf(stderr,"#    x[%d]=%e (%g,+inf) trans 4 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (%g,+inf) trans 4 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
 	  break;
 	case 5:/* (-inf,a) */
-	  fprintf(stderr,"#    x[%d]=%e (-inf,%g) trans 5 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (-inf,%g) trans 5 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
 	  break;
 	case 6:/* (a,b) */
-	  fprintf(stderr,"#    x[%d]=%e (%g,%g) trans 6 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (%g,%g) trans 6 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
 	  break;
 	case 7:
-	  fprintf(stderr,"#    x[%d]=%e (%g,%g) trans 7 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (%g,%g) trans 7 -> %e\n",(int) i,x[i],xmin[i],xmax[i],GET(y,i));
 	  break;
 	case 8:/* [a,+inf) */
-	  fprintf(stderr,"#    x[%d]=%e (%g,+inf) trans 8 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (%g,+inf) trans 8 -> %e\n",(int) i,x[i],xmin[i],GET(y,i));
 	  break;
 	case 9:/* [a,+inf) */
-	  fprintf(stderr,"#    x[%d]=%e (-inf,%g) trans 9 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
+	  Rprintf("#    x[%d]=%e (-inf,%g) trans 9 -> %e\n",(int) i,x[i],xmax[i],GET(y,i));
 	  break;
 	}
     }
     {
       double res;
-      fprintf(stderr,"#    - function initial value\n");
+      Rprintf("#    - function initial value\n");
       f(n,x,fparams,&res);
-      fprintf(stderr,"#    f=%e\n",res);
+      Rprintf("#    f=%e\n",res);
     }
   }
   /* -------------------------------------------- */
@@ -739,13 +739,13 @@ multimin(size_t n,double *x,double *fun,
 
     if(status)
       {
-	fprintf(stderr,"#ERROR: %s\n",gsl_strerror (status));
-	exit(EXIT_FAILURE);
+	error("#ERROR: %s\n",gsl_strerror (status));
+	//exit(EXIT_FAILURE);
       }
 
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
     if(oparams.verbosity>2)
-      fprintf(stderr,"#    - start minimization \n");
+      Rprintf("#    - start minimization \n");
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
    
     do
@@ -757,27 +757,27 @@ multimin(size_t n,double *x,double *fun,
 
 	/* +++++++++++++++++++++++++++++++++++++++++++++++ */
 	if(oparams.verbosity>2){
-	  fprintf(stderr,"#     [%d]",iter);
-	  fprintf(stderr," g=%+12.6e  y=( ",s->f);
+	  Rprintf("#     [%d]",iter);
+	  Rprintf(" g=%+12.6e  y=( ",s->f);
 	  for(i=0;i<n;i++)
-	    fprintf(stderr,"%+12.6e ",GET(s->x,i));
-	  fprintf(stderr,") dg=( ");
+	    Rprintf("%+12.6e ",GET(s->x,i));
+	  Rprintf(") dg=( ");
 	  for(i=0;i<n;i++)
-	    fprintf(stderr,"%+12.6e  ",GET(s->gradient,i));
-          fprintf(stderr,") |dg|=%12.6e ",gsl_blas_dnrm2 (s->gradient));
-          fprintf(stderr,"|dx|=%12.6e\n",gsl_blas_dnrm2 (s->dx));
+	    Rprintf("%+12.6e  ",GET(s->gradient,i));
+          Rprintf(") |dg|=%12.6e ",gsl_blas_dnrm2 (s->gradient));
+          Rprintf("|dx|=%12.6e\n",gsl_blas_dnrm2 (s->dx));
 	}
 	/* +++++++++++++++++++++++++++++++++++++++++++++++ */
 
 	if (status == GSL_ENOPROG){
 		if (print_warning || oparams.verbosity>2)
-			fprintf(stderr,"#    status: %s\n",gsl_strerror (status));
+			Rprintf("#    status: %s\n",gsl_strerror (status));
 		break;
 	}
 		  
 	if (status){
 		if (print_warning || oparams.verbosity>2)
-			fprintf(stderr,"#WARNING: %s\n", gsl_strerror (status));
+			Rprintf("#WARNING: %s\n", gsl_strerror (status));
 		break;
 	}
             
@@ -792,8 +792,8 @@ multimin(size_t n,double *x,double *fun,
 
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
     if(oparams.verbosity>2){
-      fprintf(stderr,"#    - end minimization\n");
-      fprintf(stderr,"#    iterations %u\n",iter-1);
+      Rprintf("#    - end minimization\n");
+      Rprintf("#    iterations %u\n",iter-1);
     }
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
 
@@ -827,11 +827,11 @@ multimin(size_t n,double *x,double *fun,
     /* --- OUPUT ---------------------------------- */
     if(oparams.verbosity>0){
       size_t i;
-      fprintf(stderr,"#    initial simplex sizes\n");
-      fprintf(stderr,"#    ");
+      Rprintf("#    initial simplex sizes\n");
+      Rprintf("#    ");
       for(i=0;i<n;i++)
-	fprintf(stderr," %g", GET(ss,i));
-      fprintf(stderr,"\n");
+	Rprintf(" %g", GET(ss,i));
+      Rprintf("\n");
     }
     /* -------------------------------------------- */
 
@@ -840,13 +840,12 @@ multimin(size_t n,double *x,double *fun,
 
     if(status)
       {
-	fprintf(stderr,"#ERROR: %s\n",gsl_strerror (status));
-	exit(EXIT_FAILURE);
+	error("#ERROR: %s\n",gsl_strerror (status));
       }
 
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
     if(oparams.verbosity>2)
-      fprintf(stderr,"#    - start minimization \n");
+      Rprintf("#    - start minimization \n");
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
 
     do
@@ -859,12 +858,12 @@ multimin(size_t n,double *x,double *fun,
 
 	/* +++++++++++++++++++++++++++++++++++++++++++++++ */
 	if(oparams.verbosity>2){
-	  fprintf(stderr,"#    g=%g y=( ",s->fval);
+	  Rprintf("#    g=%g y=( ",s->fval);
 	  for(i=0;i<n;i++)
-	    fprintf(stderr,"%g ",GET(s->x,i));
-	  fprintf(stderr,") ");
-	  fprintf(stderr," simplex size=%g ",size);
-	  fprintf(stderr,"\n");
+	    Rprintf("%g ",GET(s->x,i));
+	  Rprintf(") ");
+	  Rprintf(" simplex size=%g ",size);
+	  Rprintf("\n");
 	}
 	/* +++++++++++++++++++++++++++++++++++++++++++++++ */
 
@@ -878,8 +877,8 @@ multimin(size_t n,double *x,double *fun,
 
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
     if(oparams.verbosity>2){
-      fprintf(stderr,"#    - end minimization\n");
-      fprintf(stderr,"#    iterations %u\n",iter-1);
+      Rprintf("#    - end minimization\n");
+      Rprintf("#    iterations %u\n",iter-1);
     }
     /* +++++++++++++++++++++++++++++++++++++++++++++++ */
 
@@ -935,8 +934,8 @@ multimin(size_t n,double *x,double *fun,
   /* --- OUPUT ---------------------------------- */
   if(oparams.verbosity>0){
     for(i=0;i<n;i++)
-      fprintf(stderr,"#    %e -> x[%zd]=%e\n",GET(y,i),i,x[i]);
-    fprintf(stderr,"#--- MULTIMIN END --- \n");
+      Rprintf("#    %e -> x[%zd]=%e\n",GET(y,i),i,x[i]);
+    Rprintf("#--- MULTIMIN END --- \n");
   }
   /* -------------------------------------------- */
 

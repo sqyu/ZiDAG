@@ -1,0 +1,1 @@
+PKG_LIBS=-L/usr/gsl/lib -lgsl -lgslcblas -lm

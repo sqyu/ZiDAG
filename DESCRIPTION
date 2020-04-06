@@ -1,11 +1,28 @@
-Package: zeropkg
+Package: ZiDAG
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Directed Graphical Models and Causal Discovery for Zero-Inflated Data
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Shiqing Yu
+Maintainer: Shiqing Yu <syu.phd@gmail.com>
+Description: Directed Graphical Models and Causal Discovery for Zero-Inflated Data.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
+Imports:
+    glmnet,
+    pcalg,
+    stats,
+    utils
+Suggests:
+    bnlearn,
+    ggm,
+    igraph,
+    knitr,
+    methods,
+    numDeriv,
+    parallel,
+    sfsmisc
+URL: https://github.com/sqyu/ZiDAG
+BugReports: https://github.com/sqyu/ZiDAG/issues
+RoxygenNote: 7.1.0
+VignetteBuilder: knitr

@@ -11,6 +11,8 @@ extern int errno;
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_blas.h>
+#include <R.h>
+#include <Rinternals.h>
 
 /* --------------- */
 
