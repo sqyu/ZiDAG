@@ -1,3 +1,5 @@
+// From http://cafim.sssup.it/~giulio/software/multimin/multimin.html
+// From https://github.com/kern-lab/im_clam/blob/master/multimin.c
 /*
   multimin.c (ver. 1.2) -- Interface to GSL multidim. minimization
   Copyright (C) 2002-2014 Giulio Bottazzi

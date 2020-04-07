@@ -1,5 +1,3 @@
-// http://cafim.sssup.it/~giulio/software/multimin/multimin.html
-// https://github.com/kern-lab/im_clam/blob/master/multimin.c
 // Compile with R CMD SHLIB optim.c multimin.c  -lgsl -lgslcblas -o  optim.so
 
 #include <stdlib.h>
@@ -153,25 +151,6 @@ void fdf_func(const size_t par_size, const double *par, void *fparams, double *f
 	free(G); free(H);
 }
 
-/*void f_func(const size_t n, const double *x,void *fparams,double *fval){
-  double *p = (double *) fparams;
-  *fval=p[2]*(x[0]-p[0])*(x[0]-p[0]) + p[3]*(x[1]-p[1])*(x[1]-p[1]) + p[4];
-}
-
-void df_func(const size_t n, const double *x,void *fparams,double *grad)
-{
-    double *p = (double *) fparams;
-    grad[0]=2*p[2]*(x[0]-p[0]);
-    grad[1]=2*p[3]*(x[1]-p[1]);
-}
-
-void fdf_func(const size_t n, const double *x,void *fparams,double *fval,double *grad)
-{
-  double *p = (double *) fparams;
-  *fval=p[2]*(x[0]-p[0])*(x[0]-p[0]) + p[3]*(x[1]-p[1])*(x[1]-p[1]) + p[4];
-  grad[0]=2*p[2]*(x[0]-p[0]);
-  grad[1]=2*p[3]*(x[1]-p[1]);
-}*/
 
 void optim(const int *sample_size_input, const int *num_parents_input, double *minimum, double *grad, double *par_init, const double *WY, double *step_size, double *tol, unsigned *maxiter, double *epsabs, double *maxsize, unsigned *method, unsigned *verbosity){
 	sample_size = *sample_size_input;
@@ -189,45 +168,3 @@ void optim(const int *sample_size_input, const int *num_parents_input, double *m
 	free(t); free(xmin);
 }
 
-/*
-int main(){
-  
-  double par[2] = { 1, 2.3 };
-  
-  double x[3]={1,2,3};
-  double minimum;
-  
-  double xmin[2], xmax[2];
-  unsigned type[2];
-  
-  struct multimin_params optim_par = {.1,1e-2,100,1e-3,1e-5,2,0};
-  
-  // unconstrained minimization
-  multimin(3,x,&minimum,NULL,NULL,NULL,&f_func,&df_func,&fdf_func,(void *) par,optim_par);
-  
-  printf("unconstrained minimum %e at x=%e y=%e\n",minimum,x[0],x[1]);
-  
-  // minimum constrained in [-1,2]x(-5,5]
-  type[0]=3;
-  xmin[0]=-1;
-  xmax[0]=2;
-  x[0]=0;
-
-  type[1]=2;
-  xmin[1]=-5;
-  xmax[1]=5;
-  x[1]=0;
-
-  // increase verbosity
-  optim_par.verbosity=1;
-
-  multimin(2,x,&minimum,type,xmin,xmax,&f_func,&df_func,&fdf_func,par,optim_par);
-  
-  printf("constrained minimum %e at x=%e y=%e\n",minimum,x[0],x[1]);
-	
-	printf("%5f\n", log1plusexp(1.5));
-	
-	
-	printf("%5f\n", log1plusexp(-2.3));
-  return 0;
-}*/

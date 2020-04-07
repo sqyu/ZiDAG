@@ -14,14 +14,11 @@ Imports:
     stats,
     utils
 Suggests:
-    bnlearn,
     ggm,
     igraph,
     knitr,
-    methods,
     numDeriv,
-    parallel,
-    sfsmisc
+    parallel
 URL: https://github.com/sqyu/ZiDAG
 BugReports: https://github.com/sqyu/ZiDAG/issues
 RoxygenNote: 7.1.0
