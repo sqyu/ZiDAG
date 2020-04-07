@@ -13,7 +13,7 @@ mle1d_abk(V, Y, left, value_only = TRUE)
 
 \item{left}{An integer between 1 and \code{ncol(Y)}. The index of the variable to be fit.}
 
-\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only.}
+\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only. Defaults to \code{TRUE}.}
 }
 \value{
 If \code{value_only == TRUE}, returns the minimized negative log likelihood only.

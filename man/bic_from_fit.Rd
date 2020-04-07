@@ -16,11 +16,11 @@ A number, the BIC score.
 Calculates the BIC score from a fit result.
 }
 \details{
-Returns \code{bic_score(fit_res$value, fit_res$n, fit_res$effective_df)}.
+Returns \code{bic_score(fit_res$nll, fit_res$n, fit_res$effective_df)}.
 }
 \examples{
 Y <- matrix(rnorm(500) * rbinom(500, 1, 0.7), nrow=50)
 res <- zi_fit(Y != 0, Y, 1, 2:5, value_only=FALSE)
 bic_from_fit(res)
-bic_score(res$value, res$n, res$effective_df)
+bic_score(res$nll, res$n, res$effective_df)
 }

@@ -11,13 +11,13 @@ full_design1(Vo, Yo, right, V_degree = 1, Y_degree = 1, Y_V_degree = 1)
 
 \item{Yo}{A numerical matrix, the sample matrix for the parent nodes (regressors).}
 
-\item{right}{A string veector of length equal to \code{ncol(Vo)}, the names of the parent nodes.}
+\item{right}{A string vector of length equal to \code{ncol(Vo)}, the names of the parent nodes.}
 
-\item{V_degree}{A non-negative integer, the degree for the \code{Vo} in the Hurdle polynomial.}
+\item{V_degree}{A non-negative integer, the degree for the \code{Vo} in the Hurdle polynomial. Defaults to 1.}
 
-\item{Y_degree}{A non-negative integer, the degree for the \code{Yo} in the Hurdle polynomial.}
+\item{Y_degree}{A non-negative integer, the degree for the \code{Yo} in the Hurdle polynomial. Defaults to 1.}
 
-\item{Y_V_degree}{A non-negative integer, the degree for interaction between \code{Vo} and \code{Yo} in the Hurdle polynomial. If equal to 1, no interaction will be included (since it would be either a pure \code{V} term or a pure \code{Y} term).}
+\item{Y_V_degree}{A non-negative integer, the degree for interaction between \code{Vo} and \code{Yo} in the Hurdle polynomial. Defaults to 1. If equal to 1, no interaction will be included (since it would be either a pure \code{V} term or a pure \code{Y} term).}
 }
 \value{
 The design matrix with number of rows equal to \code{nrow(Vo)}.

@@ -25,6 +25,6 @@ Returns \code{2*avgnll+log(n)/n*numpar}.
 \examples{
 Y <- matrix(rnorm(500) * rbinom(500, 1, 0.7), nrow=50)
 res <- zi_fit(Y != 0, Y, 1, 2:5, value_only=FALSE)
-bic_score(res$value, res$n, res$effective_df)
+bic_score(res$nll, res$n, res$effective_df)
 bic_from_fit(res)
 }

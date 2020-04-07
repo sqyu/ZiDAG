@@ -21,7 +21,7 @@ Calculate the \code{a} parameter in the conditional Hurdle density of the child 
 }
 \details{
 Assuming \code{aa = c(a1, a2, a3)} where \code{a1} is a scalar, \code{a2} and \code{a3}, the function returns \code{a1 + sum(a2*vo) + sum(a3*yo)}.
-This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{a} parameter is linenar in the parents and their indicators.
+This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{a} parameter is linear in the parents and their indicators.
 }
 \examples{
 set.seed(1)

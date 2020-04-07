@@ -2,7 +2,7 @@
 % Please edit documentation in R/zero_est_core.R
 \name{zi_fit_abk}
 \alias{zi_fit_abk}
-\title{Fits a Hurdle polynomial with abk parametrization.}
+\title{Fits a linear Hurdle conditional model with abk parametrization.}
 \usage{
 zi_fit_abk(
   V,
@@ -38,7 +38,7 @@ zi_fit_abk(
 
 \item{runs}{A positive integer, number of reruns; if larger than \code{1}, \code{stats::optim} will be called multiple times with different initial values, and the fit that maximizes the log likelihood will be used.}
 
-\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only.}
+\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only. Defaults to \code{TRUE}.}
 
 \item{report}{An integer indicating verbosity. If \code{use_C == FALSE}, passed as \code{report} argument to \code{zi_fit_R()}, argument to \code{stats::optim}: if set to 1 no output is print during estimation. If \code{use_C == TRUE}, passed as \code{verbosity} argument to \code{zi_fit_C()}, argument to optim() in C code: a positive integer, verbosity level; if set to 0 no output is print during estimation.}
 
@@ -58,16 +58,22 @@ If \code{value_only == TRUE}, returns the minimized negative log likelihood only
   \item{effective_df}{\code{4*length(right)+3}, the effective degree of freedom.}
 }
 \description{
-Fits a Hurdle polynomial with abk parametrization.
+Fits a linear Hurdle conditional model with abk parametrization.
 }
 \details{
+A linear Hurdle conditional model with abk parametrization for the \code{left} node given those in \code{right} has log density with respect to the sum of the Lebesgue measure and a point mass at 0 equal to (in terms of \code{y})
+\eqn{av+by-y0^2k/2-\log(1+\sqrt(2\pi/k)\exp(a+b^2/(2k)))}{a*v+b*y-y^2*k/2-log(1+sqrt(2pi/k)*exp(a+b^2/(2k)))},
+where \code{v = (y != 0)}, \code{k} is constant and \code{a} and \code{b} are linear functions in the values for \code{right} and their indicators.
+This function fits such a model using \code{Y[,left]}, \code{Y[,right]} and \code{V[,right] = (Y[,right] != 0)}.
+
 If \code{right} is empty, fits an unconditional univariate Hurdle using \code{mle1d_abk()}.
 If \code{use_C == TRUE}, calls \code{zi_fit_C()}.
 If \code{use_C == FALSE}, calls \code{zi_fit_R()}.
 }
 \examples{
-adj_mat <- matrix(c(1,1,0, 0,1,0, 0,0,0), nrow=3, byrow=TRUE)
-dat <- gen_zero_dat(1, "abk", adj_mat, 1000, k_mode=1, min_num=10, gen_uniform_degree=1)
+m <- 3; n <- 1000
+adj_mat <- make_dag(m, "complete")
+dat <- gen_zero_dat(1, "abk", adj_mat, n, k_mode=1, min_num=10, gen_uniform_degree=1)
 zi_fit_abk(dat$V, dat$Y, 3, 1:2, use_C=FALSE, maxit=1000, runs=2, value_only=TRUE, report=0)
 zi_fit_abk(dat$V, dat$Y, 3, 1:2, use_C=TRUE, maxit=1000, runs=2, value_only=TRUE, report=0)
 zi_fit_abk(dat$V, dat$Y, 3, 1:2, use_C=FALSE, maxit=1000, runs=2, value_only=FALSE, report=0)

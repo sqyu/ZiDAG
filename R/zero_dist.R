@@ -104,7 +104,7 @@ log_dhurdle_vec_abk <- function(V, Y, A, B, k){
 #' @param yo A numerical vector, a sample for the parent nodes (regressors).
 #' @details
 #' Assuming \code{aa = c(a1, a2, a3)} where \code{a1} is a scalar, \code{a2} and \code{a3}, the function returns \code{a1 + sum(a2*vo) + sum(a3*yo)}.
-#' This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{a} parameter is linenar in the parents and their indicators.
+#' This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{a} parameter is linear in the parents and their indicators.
 #' @return A number, the mean log probability.
 #' @examples
 #' set.seed(1)
@@ -127,7 +127,7 @@ sum_a <- function(aa, vo, yo){
 #' @param minus_Y A logical, see details.
 #' @details
 #' Assuming \code{bb = c(b1, b2, b3)} where \code{b1} is a scalar, \code{b2} and \code{b3}, the function returns \code{b1 + sum(b2*vo) - sum(b3*yo)} if \code{minus_Y == TRUE}, otherwise \code{b1 + sum(b2*vo) + sum(b3*yo)}.
-#' This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{b} parameter is linenar in the parents and their indicators.
+#' This is used for calculating the \code{a} parameter of the conditional Hurdle density of the child node given the parent nodes, assuming the \code{b} parameter is linear in the parents and their indicators.
 #' @return A number, the mean log probability.
 #' @examples
 #' set.seed(1)

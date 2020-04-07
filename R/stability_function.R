@@ -70,6 +70,7 @@
 #' @param fitting_func A function that takes a vector of indices (a subvector of \code{1:n}) and returns some value that supports the "+" operation (e.g. an estimated adjacency matrix).
 #' @param B An integer, number of pairs of subsamples to be drawn. Defaults to \code{50}.
 #' @param parallel A logical that indicates whether \code{parallel::mclapply()} should be used for fitting. Otherwise, \code{lapply()} is used.
+#' @param num_cores An integer, number of cores to be used if \code{parallel}; will be set to \code{parallel::detectCores() - 1} if \code{NULL}. Defaults to \code{NULL}.
 #' @details
 #' A complementary pair of sub-indices of \code{1:n} is a pair of disjoint subvectors \code{1:n} each with length \code{floor(n/2)}.
 #' The function draws \code{B} such pairs, and apply \code{fitting_func()} to each of these \code{2*B} lists of sub-indices.
@@ -81,13 +82,13 @@
 #' @examples
 #' m <- 3; n <- 200; B <- 5
 #' adj_mat <- ZiDAG::make_dag(m, mode = "chain")
-#' d <- ZiDAG::gen_zero_dat(seed=i, gen_para="pms", adj_mat=adj_mat, n=n, k_mode=1, gen_uniform_degree=1)
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
 #' @export
-CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE) {
+CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE, num_cores=NULL) {
   if (n < 2) stop("The sanple size must be at least 2.")
   # fitting_func: takes a vector of sample indices and returns an adjacency matrix using those samples
   seq_n <- seq_len(n)
@@ -103,8 +104,8 @@ CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE) {
     tmp
   }
   if (parallel) {
-    num_cores <- 1 + (parallel::detectCores() >= 2)
-    num_cores <- max(num_cores, parallel::detectCores() - 1)
+    if (is.null(num_cores)) num_cores <- parallel::detectCores() - 1
+    else num_cores <- min(num_cores, parallel::detectCores() - 1)
     res_list <- parallel::mclapply(1:length(indices_list), one_fit, mc.cores = num_cores)
   } else {res_list <- lapply(1:length(indices_list), one_fit)}
   freq_B <- Reduce("+", res_list)
@@ -131,11 +132,11 @@ CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE) {
 #' @examples
 #' m <- 3; n <- 100; B <- 10
 #' adj_mat <- ZiDAG::make_dag(m, mode = "chain")
-#' d <- ZiDAG::gen_zero_dat(seed=i, gen_para="pms", adj_mat=adj_mat, n=n, k_mode=1, gen_uniform_degree=1)
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
 #' cpss_path <- CPSS_path(freq_B, B = B)
 #' @export
 CPSS_path <- function(freq_B, B = 50, force_acyclic=TRUE) {
@@ -183,11 +184,11 @@ CPSS_path <- function(freq_B, B = 50, force_acyclic=TRUE) {
 #' @examples
 #' m <- 3; n <- 200; B <- 10
 #' adj_mat <- ZiDAG::make_dag(m, mode = "chain")
-#' d <- ZiDAG::gen_zero_dat(seed=i, gen_para="pms", adj_mat=adj_mat, n=n, k_mode=1, gen_uniform_degree=1)
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=FALSE, num_cores=2)
 #' cpss_path <- CPSS_path(freq_B, B = B)
 #' CPSS_control(cpss_path, freq=0.5, B=B)
 #' CPSS_control(cpss_path, FDR=0.2, B=B)

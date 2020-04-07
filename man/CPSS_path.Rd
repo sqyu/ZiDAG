@@ -31,10 +31,10 @@ Note: The user is expected to call \code{CPSS_fit()}, followed by \code{CPSS_pat
 \examples{
 m <- 3; n <- 100; B <- 10
 adj_mat <- ZiDAG::make_dag(m, mode = "chain")
-d <- ZiDAG::gen_zero_dat(seed=i, gen_para="pms", adj_mat=adj_mat, n=n, k_mode=1, gen_uniform_degree=1)
+d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
 fitting_func <- function(indices) return (
     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE)
+freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
 cpss_path <- CPSS_path(freq_B, B = B)
 }

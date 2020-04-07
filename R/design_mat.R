@@ -127,10 +127,10 @@
 #'
 #' @param Vo A numerical matrix of the same dimension as \code{Yo} indicating if each entry in \code{Yo} is non-zero, i.e. \code{Vo = (Yo != 0)}.
 #' @param Yo A numerical matrix, the sample matrix for the parent nodes (regressors).
-#' @param right A string veector of length equal to \code{ncol(Vo)}, the names of the parent nodes.
-#' @param V_degree A non-negative integer, the degree for the \code{Vo} in the Hurdle polynomial.
-#' @param Y_degree A non-negative integer, the degree for the \code{Yo} in the Hurdle polynomial.
-#' @param Y_V_degree A non-negative integer, the degree for interaction between \code{Vo} and \code{Yo} in the Hurdle polynomial. If equal to 1, no interaction will be included (since it would be either a pure \code{V} term or a pure \code{Y} term).
+#' @param right A string vector of length equal to \code{ncol(Vo)}, the names of the parent nodes.
+#' @param V_degree A non-negative integer, the degree for the \code{Vo} in the Hurdle polynomial. Defaults to 1.
+#' @param Y_degree A non-negative integer, the degree for the \code{Yo} in the Hurdle polynomial. Defaults to 1.
+#' @param Y_V_degree A non-negative integer, the degree for interaction between \code{Vo} and \code{Yo} in the Hurdle polynomial. Defaults to 1. If equal to 1, no interaction will be included (since it would be either a pure \code{V} term or a pure \code{Y} term).
 #' @details
 #' A Hurdle polynomial in parents \code{Yo} is a polynomial in \code{Yo} and their 0/1 indicators \code{Vo}.
 #' The \code{V_degree} of a term that is a product of some columns of \code{Vo} only is the number of parents that appears in it. For example, \code{V1 * V2 * V3} has \code{V_degree} equal to 3. Note that \code{V1^p} is equal to \code{V1} for any \code{p >= 1} so it does not make sense to include a power.

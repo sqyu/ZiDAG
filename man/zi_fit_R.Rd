@@ -31,7 +31,7 @@ zi_fit_R(
 
 \item{runs}{A positive integer, number of reruns; if larger than \code{1}, \code{stats::optim} will be called multiple times with different initial values, and the fit that maximizes the log likelihood will be used.}
 
-\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only.}
+\item{value_only}{If \code{TRUE}, returns the minimized negative log likelihood only. Defaults to \code{TRUE}.}
 
 \item{report}{An integer indicating verbosity, argument to \code{stats::optim}. If set to 1 no output is print during estimation.}
 }
@@ -51,8 +51,9 @@ Fits the Hurdle model assuming linear abk parametrization, where \code{Y[,left]}
 with \code{a} and \code{b} both linear functions in \code{V[,right]} and \code{Y[,right]}.
 }
 \examples{
-adj_mat <- matrix(c(1,1,0, 0,1,0, 0,0,0), nrow=3, byrow=TRUE)
-dat <- gen_zero_dat(1, "abk", adj_mat, 1000, k_mode=1, min_num=10, gen_uniform_degree=1)
+m <- 3; n <- 1000
+adj_mat <- make_dag(m, "complete")
+dat <- gen_zero_dat(1, "abk", adj_mat, n, k_mode=1, min_num=10, gen_uniform_degree=1)
 zi_fit_R(dat$V, dat$Y, 3, 1:2, maxit=1000, runs=2, value_only=TRUE, report=0)
 zi_fit_R(dat$V, dat$Y, 3, 1:2, maxit=1000, runs=2, value_only=FALSE, report=0)
 }

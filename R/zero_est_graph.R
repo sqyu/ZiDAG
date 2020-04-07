@@ -1,18 +1,20 @@
+########################## BIC scores ##########################
+
 #' Calculates the BIC score from a fit result.
 #'
 #' Calculates the BIC score from a fit result.
 #'
 #' @param fit_res A list returned from \code{zi_fit()} or \code{.res_from_model_fits()} with \code{value_only == FALSE}.
-#' @details Returns \code{bic_score(fit_res$value, fit_res$n, fit_res$effective_df)}.
+#' @details Returns \code{bic_score(fit_res$nll, fit_res$n, fit_res$effective_df)}.
 #' @return A number, the BIC score.
 #' @examples
 #' Y <- matrix(rnorm(500) * rbinom(500, 1, 0.7), nrow=50)
 #' res <- zi_fit(Y != 0, Y, 1, 2:5, value_only=FALSE)
 #' bic_from_fit(res)
-#' bic_score(res$value, res$n, res$effective_df)
+#' bic_score(res$nll, res$n, res$effective_df)
 #' @export
 bic_from_fit <- function(fit_res){
-  return (bic_score(fit_res$value, fit_res$n, fit_res$effective_df))
+  return (bic_score(fit_res$nll, fit_res$n, fit_res$effective_df))
 }
 
 #' Calculates the BIC score.
@@ -27,12 +29,15 @@ bic_from_fit <- function(fit_res){
 #' @examples
 #' Y <- matrix(rnorm(500) * rbinom(500, 1, 0.7), nrow=50)
 #' res <- zi_fit(Y != 0, Y, 1, 2:5, value_only=FALSE)
-#' bic_score(res$value, res$n, res$effective_df)
+#' bic_score(res$nll, res$n, res$effective_df)
 #' bic_from_fit(res)
 #' @export
 bic_score <- function(avgnll, n, numpar){
   return (2*avgnll+log(n)/n*numpar)
 }
+
+
+########################## GDS ##########################
 
 
 .add_edge <- function(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, control=list()){
@@ -143,12 +148,375 @@ bic_score <- function(avgnll, n, numpar){
 }
 
 
+#' Greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
+#'
+#' Greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
+#'
+#' @param V A matrix of 0/1s, equal to Y != 0.
+#' @param Y A data matrix of the same size as \code{V}.
+#' @param parametrization A string, either \code{"abk"} (canonical) or \code{"pms"} (moment).
+#' @param fixedGaps A logical square matrix of number of rows/columns equal to number of columns of \code{Y}. Similar to \code{pcalg::gds()}, if its \code{[i,j]} is \code{TRUE}, the result is guaranteed to have no edge between nodes \code{i} and \code{j}.
+#' @param maxDegree A positive integer, the maximum degree of a node.
+#' @param maxInDegree A positive integer, the maximum in-degree of a node.
+#' @param init An adjacency matrix of number of rows/columns equal to number of columns of \code{Y}. Defaults to \code{NULL} and used as the initial graph. If not specified, the empty graph is used for initialization.
+#' @param verbose A logical, whether to print intermediate steps.
+#' @param control A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.
+#' @details
+#' Performs greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
+#' See Chickering (2003) or \code{?pcalg::gds} for details. However, unlike the Gaussian case in their implementation that returns an equivalence class of DAGs, the DAG estimated by this function is exact.
+#' @return An adjacency matrix.
+#' @examples
+#' m <- 4; n <- 1000
+#' adj_mat <- ZiDAG::make_dag(m, mode = "chain", shuffle=FALSE)
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
+#' est <- ZiDAG::ziGDS(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#'
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="abk", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
+#' est <- ZiDAG::ziGDS(V=d$V, Y=d$Y, parametrization="abk", verbose=FALSE,
+#'     control=list(use_C=TRUE, maxit=1000, runs=2, report=0))
+#' adj_mat == est
+#'
+#' est <- ZiDAG::ziGDS(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#'
+#' est <- ZiDAG::ziGDS(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=2L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#' @export
+ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDegree=Inf, init=NULL, verbose=FALSE, control=list()){
+  if (!requireNamespace("ggm", quietly = TRUE))
+    stop("Please install package \"ggm\".")
+  if (!all(dim(V)==dim(Y))) stop("V and Y must have the same dimension.")
+  n <- nrow(V); m <- ncol(V)
+  maxDegree <- min(m-1, maxDegree)
+  maxInDegree <- min(m-1, maxInDegree)
+  if (maxInDegree > maxDegree)
+    stop("maxInDegree must be smaller than maxDegree.")
+  if (!is.null(fixedGaps)) {
+    if (length(dim(fixedGaps)) != 2 || !all(dim(fixedGaps) == m))
+      stop("If provided, fixedGaps must be a ", m, "x", m, " matrix.")
+    if (!all(fixedGaps*1 == 0 || fixedGaps*1 == 1))
+      stop("If provided, fixedGaps must be a logical or 0/1 matrix.")
+    if (sum(abs(fixedGaps - t(fixedGaps))) != 0) {
+      stop("fixedGaps must be a symmetric matrix.")
+    }
+  }
+  if (is.null(init)){
+    cur_adj_mat <- matrix(0,m,m)
+    in_edges <- lapply(1:m, function(i){integer(0)})
+  } else if (is.list(init)){
+    if (length(init)!=m)
+      stop("Initial (in-)edge list must have length ",m,".")
+    cur_adj_mat <- matrix(0,m,m)
+    for (in_v in 1:m){
+      if (any(init[[in_v]] < 1 | init[[in_v]] > m))
+        stop("Vertices in edge list must be between 1 and ",m,".")
+      if (in_v %in% init[[in_v]]){
+        warning("Self edge for", in_v, "ignored.")
+        init[[in_v]] <- sort(setdiff(init[[in_v]], c(in_v)))
+      } else {
+        init[[in_v]] <- sort(init[[in_v]])
+      }
+      cur_adj_mat[init[[in_v]], in_v] <- 1
+    }
+    in_edges <- init
+  } else {
+    if (length(dim(init))!=2 || !all(dim(init)==c(m,m)))
+      stop("Initial adjacency matrix must have dimension ",m,"*",m,".")
+    if (is.logical(init)){init <- init*1}
+    else if (!all(unique(c(init)) %in% c(0,1))){
+      stop("Initial adjacency matrix must have 0 or 1s only.")
+    }
+    if (any(diag(init)!=0)){
+      if (verbose)
+        warning("Self edge(s) ignored.\n")
+      diag(init) <- 0
+    }
+    cur_adj_mat <- init
+    in_edges <- lapply(1:m, function(i){which(init[,i]!=0)})
+  }
+  if (!is.null(fixedGaps) && any(cur_adj_mat[fixedGaps] != 0))
+    stop("No edge excluded in fixedGaps should be present in the initial adjacency matrix.")
+  if (!ggm::isAcyclic(cur_adj_mat))
+    stop("Initial graph must be acyclic.")
+  degrees <- rowSums(cur_adj_mat) + colSums(cur_adj_mat)  # only need the degree, not the list
+  nodewise_score <- sapply(1:m, function(i){bic_from_fit(zi_fit(V, Y, left=i, right=in_edges[[i]], parametrization=parametrization, value_only=FALSE, control=control))})
+  old_best_sum <- Inf
+  best_sum <- sum(nodewise_score)
+  iter_count <- 0
+  add_dec <- rem_dec <- matrix(NA,m,m)
+  while (best_sum < old_best_sum-1e-9){
+    old_best_sum <- best_sum
+    iter_count <- iter_count + 1
+    if (verbose){message(paste("Iteration ", iter_count, ": BIC score ", old_best_sum, sep=""), "\n")}
+    while (TRUE){
+      res_add <- .add_edge(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, control)
+      if (res_add$best_in == -1){
+        break
+      }
+      nodewise_score[res_add$best_in] <- res_add$best_new_score
+      best_sum <- best_sum - res_add$best_decrease
+      add_dec <- res_add$add_dec
+      cur_adj_mat[res_add$best_out, res_add$best_in] <- 1
+      add_dec[,res_add$best_in] <- NA; rem_dec[,res_add$best_in] <- NA
+      add_dec[res_add$best_in, res_add$best_out] <- NA
+      in_edges[[res_add$best_in]] <- sort(c(in_edges[[res_add$best_in]], res_add$best_out))
+      degrees[res_add$best_in] <- degrees[res_add$best_in] + 1
+      degrees[res_add$best_out] <- degrees[res_add$best_out] + 1
+      if (verbose) message(paste("Added ", res_add$best_out, "->", res_add$best_in, ", new BIC ", best_sum, sep=""), "\n")
+    }
+    while (TRUE){
+      res_remove <- .remove_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, rem_dec, control)
+      if (res_remove$best_in == -1){
+        break
+      }
+      nodewise_score[res_remove$best_in] <- res_remove$best_new_score
+      best_sum <- best_sum - res_remove$best_decrease
+      rem_dec <- res_remove$rem_dec
+      cur_adj_mat[res_remove$best_out, res_remove$best_in] <- 0
+      add_dec[,res_remove$best_in] <- NA; rem_dec[,res_remove$best_in] <- NA
+      in_edges[[res_remove$best_in]] <- setdiff(in_edges[[res_remove$best_in]], res_remove$best_out)
+      degrees[res_add$best_in] <- degrees[res_add$best_in] - 1
+      degrees[res_add$best_out] <- degrees[res_add$best_out] - 1
+      if (verbose) message(paste("Removed ", res_remove$best_out, "->", res_remove$best_in, ", new BIC ", best_sum, sep=""), "\n")
+    }
+    while (TRUE){
+      res_turn <- .turn_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, add_dec, rem_dec, maxInDegree, control)
+      if (res_turn$best_in == -1){
+        break
+      }
+      nodewise_score[res_turn$best_in] <- res_turn$best_new_score_in
+      nodewise_score[res_turn$best_out] <- res_turn$best_new_score_out
+      best_sum <- best_sum - res_turn$best_decrease
+      add_dec <- res_turn$add_dec; rem_dec <- res_turn$rem_dec
+      cur_adj_mat[res_turn$best_out, res_turn$best_in] <- 0
+      cur_adj_mat[res_turn$best_in, res_turn$best_out] <- 1
+      add_dec[,res_turn$best_in] <- NA; rem_dec[,res_turn$best_in] <- NA
+      add_dec[,res_turn$best_out] <- NA; rem_dec[,res_turn$best_out] <- NA
+      in_edges[[res_turn$best_in]] <- setdiff(in_edges[[res_turn$best_in]], res_turn$best_out)
+      in_edges[[res_turn$best_out]] <- sort(c(in_edges[[res_turn$best_out]], res_turn$best_in))
+      if (verbose) message(paste("Turned ", res_turn$best_out, "->", res_turn$best_in, ", new BIC ", best_sum, sep=""), "\n")
+    }
+  }
+  return (cur_adj_mat)
+}
 
 
+########################## SIMY ##########################
 
 
+.update_progress <- function(current, total) {
+  if (current == total){
+    message("Complete.\n")
+  }
+  if (current > 0 && current < total){
+    if (as.integer(current/total*100) != as.integer((current-1)/total*100))
+      message(as.integer(current/total*100),"%|", sep="")
+  }
+}
+
+.DecToBin <- function(x) {
+  if (x == 0) {return ("0")}
+  else if (x < 0) {stop("x needs to be >= 0.")}
+  res <- numeric(ceiling(log(x+1)/log(2)))
+  for (i in length(res):1){
+    res[i] <- x %% 2
+    x <- x %/% 2
+  }
+  return (paste(res[match(1, res):length(res)], collapse=""))
+}
+
+.DecToParents <- function(x, node){
+  ## Off by one, since lists start with index 1
+  ## parents with number > node were -1, so add back +1
+  ## node = Inf gives no translation
+  ## Example: .DecToParents(14,3)=c(1,4,5) since 13=1101, the digits correspond to nodes c(5,4,2,1)
+  x <- x-1
+  if (x == 0) {return (integer(0))}
+  else if (x < 0) {stop("x needs to be >= 1.")}
+  #else if (x >= 2^m) {stop("x must be smaller than 2^m, (x,m)=(", x, ",", m, ") provided.")}
+  parents <- integer(0)
+  for (i in 1:ceiling(log(x+1)/log(2))){
+    if (x %% 2) {
+      if (i >= node) {parents <- c(parents, i+1)}
+      else {parents <- c(parents, i)}
+    }
+    x <- x %/% 2
+  }
+  return (parents)
+}
+
+.BinToDec <- function(x) {sum(2^(which(rev(unlist(strsplit(as.character(x), "")) == 1))-1))}
+.ParentsToDec <- function(parents, node) {
+  ## Off by one, since lists start with index 1
+  ## for parents with number > node, subtract 1
+  ## node = Inf gives no translation
+  if (node %in% parents) {stop("node must not be in parents.")}
+  if (length(parents))
+    return (sum(2^(sapply(parents,function(i){if(i>node){i-2} else{i-1}})))+1)
+  return (1) ## if parents == integer(0)
+}
+
+# Could have used bottom-up, but since we will eventually need to call .ParentsToDec
+# , it's easier to just iterate over the indices of subsets and call .DecToParents
+.getLocalScores <- function(V, Y, parametrization, LS, m, control=list(), pb=NULL, Silander_count=0){
+  for (v in 1:m){
+    Vout <- setdiff(1:m, v)
+    for (i in 1:(2^(m-1))){
+      parents <- Vout[.DecToParents(i, Inf)]
+      res <- zi_fit(V=V, Y=Y, left=v, right=parents, parametrization=parametrization, value_only=FALSE, control=control)
+      LS[v, i] <- -bic_from_fit(res)
+      if (!is.null(pb)) {
+        Silander_count <- Silander_count+1
+        .update_progress(Silander_count, pb)
+      }
+    }
+  }
+  return (LS)
+}
+
+.getBestParents <- function(m, v, LS, pb, Silander_count){
+  Vout <- setdiff(1:m, v)
+  bps <- bss <- numeric(2^(length(Vout)))
+  for (csi in 1:(2^(length(Vout)))){ # enumerating subsets of Vout
+    # e.g. csi <- 6
+    cs <- .DecToParents(csi, v)
+    bps[csi] <- csi # e.g. bps[6] <- 19 (c(2,6))
+    bss[csi] <- LS[v,csi] # e.g. bss[6] <- LS[3][19] (LS[3][c(2,6)])
+    for (cs1_out in cs){ # enumerating LOO-subsets of cs, e.g. cs1_out <- 3
+      if (!is.null(pb)){
+        Silander_count <- Silander_count+1
+        .update_progress(Silander_count, pb)
+      }
+      if (cs1_out > v)
+        cs1 <- csi-2^(cs1_out-2) # index of cs\{cs1_out}
+      else
+        cs1 <- csi-2^(cs1_out-1)
+      if (bss[cs1] > bss[csi]){
+        bss[csi] <- bss[cs1]
+        bps[csi] <- bps[cs1]
+      }
+    }
+  }
+  return (bps)
+  # The values of bps are the best parent sets in dec representation
+  # The indices of bps are the candidate parent sets in dec representation
+}
+
+.getBestSinks <- function(m, bps, LS, pb, Silander_count){
+  scores <- numeric(2^m)
+  sinks <- rep(-1, 2^m)
+  for (wi in 1:(2^m)){ # index as a subset of 1:m
+    W <- .DecToParents(wi, Inf)
+    for (sink in W){
+      upvars <- setdiff(W, sink)
+      skore <- scores[wi-2^(sink-1)] # upvars
+      skore <- skore + LS[sink, bps[sink, .ParentsToDec(upvars, sink)]]
+      if (sinks[wi] == -1 || skore > scores[wi]){
+        scores[wi] <- skore; sinks[wi] <- sink
+      }
+      if (!is.null(pb)){
+        Silander_count <- Silander_count+1
+        .update_progress(Silander_count, pb)
+      }
+    }
+  }
+  return (sinks)
+  ## indices of sinks correspond to nodes sapply(1:2^m, function(i){.DecToParents(i, Inf)})
+}
+
+.Sinks2ord <- function(m, sinks){
+  ord <- numeric(m)
+  left <- 1:m
+  for (i in m:1){
+    ord[i] <- sinks[.ParentsToDec(left,Inf)]
+    left <- setdiff(left, ord[i])
+  }
+  return (ord)
+}
+
+.Ord2net <- function(m, ord, bps){
+  predecs <- integer(0)
+  adj_mat <- matrix(0, m, m)
+  for (i in ord){
+    adj_mat[.DecToParents(bps[i, .ParentsToDec(predecs, i)], i), i] <- 1
+    predecs <- c(predecs, i)
+  }
+  return (adj_mat)
+}
+
+#' Exhaustive search using BIC for DAGs for zero-inflated data based on Hurdle conditionals.
+#'
+#' Exhaustive search using BIC for DAGs for zero-inflated data based on Hurdle conditionals.
+#'
+#' @param V A matrix of 0/1s, equal to Y != 0.
+#' @param Y A data matrix of the same size as \code{V}.
+#' @param parametrization A string, either \code{"abk"} (canonical) or \code{"pms"} (moment).
+#' @param verbose A logical, whether to print intermediate steps.
+#' @param control A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.
+#' @details
+#' Performs exhaustive DAG search (using BIC) for DAGs for zero-inflated data based on Hurdle conditionals.
+#' See Silander and Myllymaki (2006) or \code{?pcalg::simy} for details. However, unlike the Gaussian case in their implementation that returns an equivalence class of DAGs, the DAG estimated by this function is exact.
+#' @return An adjacency matrix.
+#' @examples
+#' m <- 4; n <- 1000
+#' adj_mat <- ZiDAG::make_dag(m, mode = "chain", shuffle=TRUE)
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
+#' est <- ZiDAG::ziSIMY(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#'
+#' d <- ZiDAG::gen_zero_dat(seed=1, gen_para="abk", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
+#' est <- ZiDAG::ziSIMY(V=d$V, Y=d$Y, parametrization="abk", verbose=FALSE,
+#'     control=list(use_C=TRUE, maxit=1000, runs=2, report=0))
+#' adj_mat == est
+#'
+#' est <- ZiDAG::ziSIMY(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#'
+#' est <- ZiDAG::ziSIMY(V=d$V, Y=d$Y, parametrization="pms", verbose=FALSE,
+#'     control=list("max_uniform_degree"=2L, "tol"=1e-8, "print_best_degree"=FALSE))
+#' adj_mat == est
+#' @export
+ziSIMY <- function(V, Y, parametrization, verbose=FALSE, control=list()){
+  n <- nrow(V)
+  m <- ncol(V)
+  Silander_count <- 0
+  if (verbose){
+    message("Starting Silander.\nStep 1/5, calculating local scores...")
+    pb <- m*2^(m-1)
+  }
+  else {pb <- NULL}
+  LS <- .getLocalScores(V, Y, parametrization, matrix(NA, m, 2^(m-1)), m, control, pb, Silander_count)
+  if (verbose){
+    message("\nStep 2/5, calculating best parents...")
+    Silander_count <- 0
+    #pb <- txtProgressBar(min=0, max=m*(m-1)*2^(m-2), style=3)
+    pb <- m*(m-1)*2^(m-2)
+  } else {pb <- NULL}
+  bpss <- t(sapply(1:m, function(i){.getBestParents(m, i, LS, pb, Silander_count)}))
+  if (verbose){
+    message("\nStep 3/5, calculating best sinks...")
+    Silander_count <- 0
+    ##pb <- txtProgressBar(min=0, max=m*2^(m-1), style=3)
+    pb <- m*2^(m-1)
+  } else {pb <- NULL}
+  sinks <- .getBestSinks(m, bpss, LS, pb, Silander_count)
+  if (verbose)
+    message("\nStep 4/5, calculating best order...")
+  ord <- .Sinks2ord(m, sinks)
+  if (verbose)
+    message("\nStep 5/5, calculating best graph...\nSilander done.")
+  est_enum <- .Ord2net(m, ord, bpss)
+  return (est_enum)
+}
 
 
+########################## Tests if two DAGs are Markov equivalent ##########################
 
 
 #' Returns if the DAGs corresponding to two adjacency matrices are Markov equivalent.

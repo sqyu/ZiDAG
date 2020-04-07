@@ -4,7 +4,7 @@
 \alias{CPSS_fit}
 \title{Applies a fit function repeatedly to subsamples drawn as complementary pairs (CPSS).}
 \usage{
-CPSS_fit(n, fitting_func, B = 50, parallel = TRUE)
+CPSS_fit(n, fitting_func, B = 50, parallel = TRUE, num_cores = NULL)
 }
 \arguments{
 \item{n}{An integer >= 2, the sample size.}
@@ -14,6 +14,8 @@ CPSS_fit(n, fitting_func, B = 50, parallel = TRUE)
 \item{B}{An integer, number of pairs of subsamples to be drawn. Defaults to \code{50}.}
 
 \item{parallel}{A logical that indicates whether \code{parallel::mclapply()} should be used for fitting. Otherwise, \code{lapply()} is used.}
+
+\item{num_cores}{An integer, number of cores to be used if \code{parallel}; will be set to \code{parallel::detectCores() - 1} if \code{NULL}. Defaults to \code{NULL}.}
 }
 \value{
 The sum of results from \code{fitting_func()} applied to \code{2*B} lists of sub-indices of \code{1:n}.
@@ -32,9 +34,9 @@ Note: The user is expected to call \code{CPSS_fit()}, followed by \code{CPSS_pat
 \examples{
 m <- 3; n <- 200; B <- 5
 adj_mat <- ZiDAG::make_dag(m, mode = "chain")
-d <- ZiDAG::gen_zero_dat(seed=i, gen_para="pms", adj_mat=adj_mat, n=n, k_mode=1, gen_uniform_degree=1)
+d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_uniform_degree=1)
 fitting_func <- function(indices) return (
     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE)
+freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
 }
