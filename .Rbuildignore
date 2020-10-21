@@ -1,2 +1,15 @@
+.DS_Store
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.Rhistory$
+^\.RData$
+\.Rbuildignore
+\.DS_Store
+^\.git$
+^\.gitignore$
+cran-comments.md
+^CRAN-RELEASE$
+vignettes/precompile.R
+.Rproj.user
+.git
+.gitignore

@@ -35,6 +35,7 @@ d <- ZiDAG::gen_zero_dat(seed=1, gen_para="pms", adj_mat=adj_mat, n=n, gen_unifo
 fitting_func <- function(indices) return (
     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
+freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE,
+    num_cores=min(2, parallel::detectCores()))
 cpss_path <- CPSS_path(freq_B, B = B)
 }

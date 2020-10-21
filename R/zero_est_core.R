@@ -260,9 +260,8 @@ zi_fit_C <- function(V, Y, left, right, maxit=200, runs=1, value_only=TRUE, verb
     for (run in 1:(runs-1)){
       par <- c(stats::rnorm(4*r+2),abs(stats::rnorm(1)))
       res <- .C("optim", sample_size_input=as.integer(nrow(V)), num_parents_input=as.integer(r), value=as.double(0), grad=as.double(numeric(4*r+3)), par=as.double(par), WY=as.double(WY), step_size=as.double(step_size), tol=as.double(lm_tol), maxiter=as.integer(maxit), epsabs=as.double(epsabs), maxsize=as.double(maxsize), method=as.integer(method), verbosity=as.integer(verbosity))
-      if (best_res$value > res$value){
+      if (best_res$value > res$value)
         best_res <- res
-      }
     }
   }
   if (value_only)
@@ -275,6 +274,44 @@ zi_fit_C <- function(V, Y, left, right, maxit=200, runs=1, value_only=TRUE, verb
     return (list(nll=best_res$value, par=best_res$par, n=nrow(V), effective_df=4*r+3))
   }
 }
+
+# zi_fit_abk2 <- function(V, Y, left, right, use_C=TRUE, runs=1, value_only=TRUE, ...){
+#   r <- length(right)
+#   V1 <- V[,left]; Y1 <- Y[,left]
+#   Vo <- V[,right,drop=FALSE]; Yo <- Y[,right,drop=FALSE]
+#   nll_optim <- function(x){-log_dhurdle_vec_abk(V1,Y1,sum_A_mat(x[1:(2*r+1)],Vo,Yo),sum_B_mat(x[(2*r+2):(4*r+2)],Vo,Yo),abs(x[4*r+3]))}
+#   grad_optim <- function(x){grad <- -grad_full_vec(V1,Y1,sum_A_mat(x[1:(2*r+1)],Vo,Yo),sum_B_mat(x[(2*r+2):(4*r+2)],Vo,Yo),abs(x[4*r+3]),Vo,Yo); if (x[4*r+3]<0) grad[4*r+3] <- -grad[4*r+3]; grad}
+#   xinit <- c(stats::rnorm(4*r+2),-abs(stats::rnorm(1)))
+#   best_res <- list(value=Inf)
+#   for (run in 1:runs){
+#     if (use_C) {
+#       nll_grad_optim <- function(x){sumA <- sum_A_mat(x[1:(2*r+1)],Vo,Yo); sumB <- sum_B_mat(x[(2*r+2):(4*r+2)],Vo,Yo);
+#         grad <- -grad_full_vec(V1,Y1,sum_A_mat(x[1:(2*r+1)],Vo,Yo),sum_B_mat(x[(2*r+2):(4*r+2)],Vo,Yo),abs(x[4*r+3]),Vo,Yo); if (x[4*r+3]<0) grad[4*r+3] <- -grad[4*r+3];
+#         list(f=-log_dhurdle_vec_abk(V1,Y1,sumA,sumB,abs(x[4*r+3])), df=grad)
+#       }
+#       res <- gsl::multimin(x=xinit, f=nll_optim, df=grad_optim, fdf=nll_grad_optim, ...)
+#       if (best_res$value > res$f)
+#         best_res <- list(value=res$f, par=res$x)
+#     } else {
+#       res <- stats::optim(par=xinit, fn=nll_optim, gr=grad_optim,
+#                           method="L-BFGS-B", lower=c(rep(-Inf, 4*r+2),0.0001), ...)
+#       if (best_res$value > res$value)
+#         best_res <- list(value=res$value, par=res$par)
+#     }
+#   }
+#   if (value_only)
+#     return (best_res$value)
+#   else{
+#     best_res$par[4*r+3] <- abs(best_res$par[4*r+3])
+#     if (r)
+#       names(best_res$par) <- c(paste("a",left,sep=""), paste("q",right,sep=""), paste("r",right,sep=""), paste("b",left,sep=""), paste("s",right,sep=""), paste("t",right,sep=""), paste("k",left,sep=""))
+#     else
+#       names(best_res$par) <- c(paste(c("a","b","k"),left,sep=""))
+#     return (list(nll=best_res$value, par=best_res$par, n=nrow(V), effective_df=4*r+3))
+#   }
+# }
+
+
 
 #' Fits a linear Hurdle conditional model with abk parametrization.
 #'

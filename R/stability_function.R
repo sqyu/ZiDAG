@@ -86,7 +86,7 @@
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=1)
 #' @export
 CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE, num_cores=NULL) {
   if (n < 2) stop("The sanple size must be at least 2.")
@@ -136,7 +136,7 @@ CPSS_fit <- function(n, fitting_func, B = 50, parallel=TRUE, num_cores=NULL) {
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=2)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=TRUE, num_cores=1)
 #' cpss_path <- CPSS_path(freq_B, B = B)
 #' @export
 CPSS_path <- function(freq_B, B = 50, force_acyclic=TRUE) {
@@ -188,7 +188,7 @@ CPSS_path <- function(freq_B, B = 50, force_acyclic=TRUE) {
 #' fitting_func <- function(indices) return (
 #'     ZiDAG::ziGDS(V=d$V[indices,], Y=d$Y[indices,], parametrization="pms", verbose=FALSE,
 #'     control=list("max_uniform_degree"=1L, "tol"=1e-8, "print_best_degree"=FALSE)))
-#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=FALSE, num_cores=2)
+#' freq_B <- ZiDAG::CPSS_fit(nrow(d$V), fitting_func, B=B, parallel=FALSE, num_cores=1)
 #' cpss_path <- CPSS_path(freq_B, B = B)
 #' CPSS_control(cpss_path, freq=0.5, B=B)
 #' CPSS_control(cpss_path, FDR=0.2, B=B)
