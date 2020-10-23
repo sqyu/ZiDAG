@@ -1,5 +1,5 @@
 # library(knitr); library(rmarkdown); library(devtools); library(roxygen2)
-# document(); build(); install(); check()
+# devtools::document(); devtools::build(); devtools::install(); devtools::check()
 # tools::package_native_routine_registration_skeleton(".")  # Copy as src/ZiDAG_init.c
 
 

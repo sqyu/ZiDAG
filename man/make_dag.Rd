@@ -9,7 +9,7 @@ make_dag(m, mode, nrows = 0, shuffle = FALSE, seed = NULL)
 \arguments{
 \item{m}{A positive integer, the dimension.}
 
-\item{mode}{One of \code{"chain"}, \code{"complete"}, \code{"lattice"}.}
+\item{mode}{One of \code{"chain"}, \code{"star_out"}, \code{"star_in"}, \code{"tree"}, \code{"complete"}, \code{"lattice"}.}
 
 \item{nrows}{A positive integer that divides \code{m}, used for \code{mode == "lattice"} as the number of rows in the graph.}
 
@@ -25,6 +25,9 @@ Returns the adjacency matrix of a chain, complete, or a lattice DAG.
 }
 \details{
 A chain graph has the form 1 -> 2 -> 3 -> ... -> m.
+A star_out graph has and only has edges 1 -> i for all \code{1 < i <= m}.
+A star_in graph has and only has edges i -> 1 for all \code{1 < i <= m}.
+A tree graph has edges (i %/% 2) -> 1 for all \code{1 < i <= m} (a balanced binary tree).
 A complete graph has an edge from \code{i} to \code{j} for any \code{1 <= i < j <= m}.
 A lattice graph first places the nodes in a \code{nrows x (m/nrows)} matrix, row by row. That is, the \code{i}-th node is on the \code{i \%/\% (m/nrows) + 1}-th row and the \code{i \%\% (m/nrows)}-th column (or the \code{(m/nrows)}-th column if \code{i} divides it). Then add an edge between any two adjacent nodes, pointing from the left to the right or from the node above to the node below.
 If \code{shuffle == TRUE}, the rows/columns of the returning adjacency matrix are simultaneously shuffled.

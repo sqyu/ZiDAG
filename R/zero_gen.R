@@ -100,12 +100,15 @@ generate_one_each_a_b_k <- function(A, B, k){
 #' Returns the adjacency matrix of a chain, complete, or a lattice DAG.
 #'
 #' @param m A positive integer, the dimension.
-#' @param mode One of \code{"chain"}, \code{"complete"}, \code{"lattice"}.
+#' @param mode One of \code{"chain"}, \code{"star_out"}, \code{"star_in"}, \code{"tree"}, \code{"complete"}, \code{"lattice"}.
 #' @param nrows A positive integer that divides \code{m}, used for \code{mode == "lattice"} as the number of rows in the graph.
 #' @param shuffle A logical, indicates whether the nodes \code{1:m} should be shuffled. Defaults to \code{FALSE}.
 #' @param seed A number, the seed passed to \code{set.seed()} if \code{shuffle == TRUE}.
 #' @details
 #' A chain graph has the form 1 -> 2 -> 3 -> ... -> m.
+#' A star_out graph has and only has edges 1 -> i for all \code{1 < i <= m}.
+#' A star_in graph has and only has edges i -> 1 for all \code{1 < i <= m}.
+#' A tree graph has edges (i %/% 2) -> 1 for all \code{1 < i <= m} (a balanced binary tree).
 #' A complete graph has an edge from \code{i} to \code{j} for any \code{1 <= i < j <= m}.
 #' A lattice graph first places the nodes in a \code{nrows x (m/nrows)} matrix, row by row. That is, the \code{i}-th node is on the \code{i \%/\% (m/nrows) + 1}-th row and the \code{i \%\% (m/nrows)}-th column (or the \code{(m/nrows)}-th column if \code{i} divides it). Then add an edge between any two adjacent nodes, pointing from the left to the right or from the node above to the node below.
 #' If \code{shuffle == TRUE}, the rows/columns of the returning adjacency matrix are simultaneously shuffled.
@@ -119,11 +122,18 @@ generate_one_each_a_b_k <- function(A, B, k){
 #' make_dag(12, "lattice", nrows=3, shuffle=TRUE)
 #' @export
 make_dag <- function(m, mode, nrows=0, shuffle=FALSE, seed=NULL){
+  if (m <= 1 || m %% 1) stop("m must be an integer >= 2.")
   adj_mat <- matrix(0, m, m)
   if (mode == "chain") {
     adj_mat[cbind(c(1:(m-1)),c(2:m))] <- 1
   } else if (mode == "complete") {
     adj_mat[upper.tri(adj_mat)] <- 1
+  } else if (mode == "star_out") {
+    adj_mat[1, -1] <- 1
+  } else if (mode == "star_in") {
+    adj_mat[-1, 1] <- 1
+  } else if (mode == "tree") {
+    for (i in 2:m) adj_mat[i %/% 2, i] <- 1
   } else if (mode == "lattice") {
     if (m %% nrows != 0) {stop("Nrows must divide m.")}
     if (nrows == 1 || m == nrows) {stop("Number of rows and columns must be > 1 for lattice")}

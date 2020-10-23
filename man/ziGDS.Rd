@@ -13,6 +13,7 @@ ziGDS(
   maxInDegree = Inf,
   init = NULL,
   verbose = FALSE,
+  no_check_DAG = FALSE,
   control = list()
 )
 }
@@ -32,6 +33,8 @@ ziGDS(
 \item{init}{An adjacency matrix of number of rows/columns equal to number of columns of \code{Y}. Defaults to \code{NULL} and used as the initial graph. If not specified, the empty graph is used for initialization.}
 
 \item{verbose}{A logical, whether to print intermediate steps.}
+
+\item{no_check_DAG}{A logical. If \code{FALSE}, check on whether the resulting graph is acyclic will not be performed in the forward and edge reversing stages.}
 
 \item{control}{A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.}
 }

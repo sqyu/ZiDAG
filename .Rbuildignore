@@ -11,5 +11,5 @@ cran-comments.md
 ^CRAN-RELEASE$
 vignettes/precompile.R
 .Rproj.user
-.git
+.git$
 .gitignore
