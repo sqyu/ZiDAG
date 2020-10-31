@@ -1,7 +1,7 @@
 Package: ZiDAG
 Type: Package
 Title: Directed Graphical Models and Causal Discovery for Zero-Inflated Data
-Version: 1.0.2
+Version: 1.0.3
 Author: Shiqing Yu, Giulio Bottazzi
 Maintainer: Shiqing Yu <syu.phd@gmail.com>
 Description: Directed Graphical Models and Causal Discovery for Zero-Inflated Data based on Hurdle conditionals. Implementation of Yu et al. (2020) <arXiv:2004.04150>.

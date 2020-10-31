@@ -14,6 +14,7 @@ ziGDS(
   init = NULL,
   verbose = FALSE,
   no_check_DAG = FALSE,
+  return_BIC = FALSE,
   control = list()
 )
 }
@@ -30,16 +31,18 @@ ziGDS(
 
 \item{maxInDegree}{A positive integer, the maximum in-degree of a node.}
 
-\item{init}{An adjacency matrix of number of rows/columns equal to number of columns of \code{Y}. Defaults to \code{NULL} and used as the initial graph. If not specified, the empty graph is used for initialization.}
+\item{init}{An list of adjacency matrices or a single adjacency matrix, each of number of rows/columns equal to number of columns of \code{Y}, used as the initial graph. Defaults to \code{NULL} representing the empty graph. If a list is provided, each matrix will be used to initialize the algorithm once and the result with the lowest BIC will be returned.}
 
 \item{verbose}{A logical, whether to print intermediate steps.}
 
 \item{no_check_DAG}{A logical. If \code{FALSE}, check on whether the resulting graph is acyclic will not be performed in the forward and edge reversing stages.}
 
+\item{return_BIC}{A logical. If \code{TRUE}, returns the estimated matrix along with the minimized BIC.}
+
 \item{control}{A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.}
 }
 \value{
-An adjacency matrix.
+If \code{return_BIC} is \code{FALSE}, returns an adjacency matrix; otherwise returns a list with \code{"graph"} element being the estimated matrix and \code{"BIC"} being the estimated BIC.
 }
 \description{
 Greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.

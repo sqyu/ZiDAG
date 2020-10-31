@@ -169,6 +169,72 @@ bic_score <- function(avgnll, n, numpar){
                "add_dec"=add_dec, "rem_dec"=rem_dec))
 }
 
+#' Randomly generates DAGs of specified sparsity.
+#'
+#' Randomly generates DAGs of specified sparsity.
+#'
+#' @param m An integer, the number of nodes.
+#' @param init_spars A vector of numbers between 0 and 1, inclusive. It is assumed that \code{as.integer(m*(m-1)/2*(1-init_spars))} does not contain duplicates.
+#' @param init_eachs A positive integer or a vector of positive integers of the same length as \code{init_spars}.
+#' @details
+#' Randomly generates DAGs of specified sparsity.
+#' For each \code{spar} in \code{init_spars}, the function generates a complete graph, then randomly remove \code{as.integer(m*(m-1)/2*(1-spar))} edges. Finally, the ordering of the \code{m} nodes are randomized.
+#' For each \code{spar = init_spars[i]} this is repeated \code{init_eachs} (if integer) or \code{init_eachs[i]} (if \code{init_eachs} is a vector of integers) times; duplicate graphs are avoided and at most 200 attempts will be made when generating each new graph.
+#' Note that for \code{spar = 0} there will only be one empty graph returned.
+#' @return
+#' A list of adjacency matrices each of shape \code{m} by \code{m}.
+#' @examples
+#' rand_init_dags(4, c(0, 0.25, 0.5, 0.75, 1), 5)
+#' rand_init_dags(10, c(0, 0.25, 0.5, 0.75, 1), 5)
+#' @export
+rand_init_dags <- function(m, init_spars, init_eachs) {
+  if (length(unique(as.integer(m*(m-1)/2*(1-init_spars)))) != length(init_spars))
+    stop("Different init_spars resulted in the same number of edges. Please double check.")
+  rand_dag <- function(m, spars, seed) {
+    set.seed(seed)
+    adj_mat <- ZiDAG::make_dag(m, mode = "complete")
+    adj_mat[sample(which(upper.tri(adj_mat)), as.integer(m*(m-1)/2*(1-spars)))] <- 0
+    ord <- sample(m)
+    return (adj_mat[ord, ord])
+  }
+  rand_mats <- list()
+  if (any(init_eachs %% 1 | init_eachs < 1))
+    stop("init_eachs must only contain positive integers.")
+  if (length(init_eachs) == 1)
+    init_eachs <- rep(init_eachs, length(init_spars))
+  else if (length(init_eachs) != length(init_spars))
+    stop("init_eachs must be a single integer or a vector of integers of the same length as init_spars.")
+  for (spar_i in 1:length(init_spars)) {
+    spar <- init_spars[spar_i]
+    init_each <- init_eachs[spar_i]
+    if (spar == 0)
+      rand_mats <- c(rand_mats, list(matrix(0, nrow=m, ncol=m)))
+    else {
+      if (init_each == 1)
+        rand_mats <- c(rand_mats, list(rand_dag(m, spar, spar)))
+      else {
+        sub_list <- list()
+        seed <- 0
+        # Generate next matrix of the same sparsity that does not equal to any of the
+        # existing ones
+        for (i in 1:init_each) {
+          this_trial <- 0
+          # Give up if already tried 200 times
+          while (this_trial <= 200) {
+            samp_mat <- rand_dag(m, spar, seed)
+            if (i == 1 || !any(sapply(sub_list, function(s){all(s == samp_mat)}))) break
+            seed <- seed + 1
+            this_trial <- this_trial + 1
+          }
+          if (this_trial == 200) break
+          sub_list <- c(sub_list, list(samp_mat))
+        }
+        rand_mats <- c(rand_mats, sub_list)
+      }
+    }
+  }
+  return (rand_mats)
+}
 
 #' Greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
 #'
@@ -180,14 +246,15 @@ bic_score <- function(avgnll, n, numpar){
 #' @param fixedGaps A logical square matrix of number of rows/columns equal to number of columns of \code{Y}. Similar to \code{pcalg::gds()}, if its \code{[i,j]} is \code{TRUE}, the result is guaranteed to have no edge between nodes \code{i} and \code{j}.
 #' @param maxDegree A positive integer, the maximum degree of a node.
 #' @param maxInDegree A positive integer, the maximum in-degree of a node.
-#' @param init An adjacency matrix of number of rows/columns equal to number of columns of \code{Y}. Defaults to \code{NULL} and used as the initial graph. If not specified, the empty graph is used for initialization.
+#' @param init An list of adjacency matrices or a single adjacency matrix, each of number of rows/columns equal to number of columns of \code{Y}, used as the initial graph. Defaults to \code{NULL} representing the empty graph. If a list is provided, each matrix will be used to initialize the algorithm once and the result with the lowest BIC will be returned.
 #' @param verbose A logical, whether to print intermediate steps.
 #' @param no_check_DAG A logical. If \code{FALSE}, check on whether the resulting graph is acyclic will not be performed in the forward and edge reversing stages.
+#' @param return_BIC A logical. If \code{TRUE}, returns the estimated matrix along with the minimized BIC.
 #' @param control A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.
 #' @details
 #' Performs greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
 #' See Chickering (2003) or \code{?pcalg::gds} for details. However, unlike the Gaussian case in their implementation that returns an equivalence class of DAGs, the DAG estimated by this function is exact.
-#' @return An adjacency matrix.
+#' @return If \code{return_BIC} is \code{FALSE}, returns an adjacency matrix; otherwise returns a list with \code{"graph"} element being the estimated matrix and \code{"BIC"} being the estimated BIC.
 #' @examples
 #' m <- 4; n <- 1000
 #' adj_mat <- ZiDAG::make_dag(m, mode = "chain", shuffle=FALSE)
@@ -209,7 +276,7 @@ bic_score <- function(avgnll, n, numpar){
 #'     control=list("max_uniform_degree"=2L, "tol"=1e-8, "print_best_degree"=FALSE))
 #' adj_mat == est
 #' @export
-ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDegree=Inf, init=NULL, verbose=FALSE, no_check_DAG=FALSE, control=list()){
+ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDegree=Inf, init=NULL, verbose=FALSE, no_check_DAG=FALSE, return_BIC=FALSE, control=list()){
   if (!requireNamespace("ggm", quietly = TRUE))
     stop("Please install package \"ggm\".")
   if (!all(dim(V)==dim(Y))) stop("V and Y must have the same dimension.")
@@ -227,6 +294,23 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       stop("fixedGaps must be a symmetric matrix.")
     }
   }
+  # If init is a list of init matrices
+  if (is.list(init)){
+    est_adj <- NULL; best_BIC <- Inf
+    for (init_i in 1:length(init)) {
+      if (verbose) message("Initial matrix #", init_i, ":")
+      tmp_est <- ziGDS(V, Y, return_BIC=TRUE, parametrization=parametrization,
+                        fixedGaps=fixedGaps, maxDegree=maxDegree, maxInDegree=maxInDegree,
+                        init=init[[init_i]], verbose=verbose, no_check_DAG=no_check_DAG, control=control)
+      if (tmp_est$BIC < best_BIC) {
+        est_adj <- tmp_est$graph; best_BIC <- tmp_est$BIC
+      }
+    }
+    if (return_BIC)
+      return (list("graph"=est_adj, "BIC"=best_BIC))
+    return (est_adj)
+  }
+  # If init is a single matrix or NULL
   if (is.null(init)){
     cur_adj_mat <- matrix(0,m,m)
     in_edges <- lapply(1:m, function(i){integer(0)})
@@ -324,6 +408,8 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       if (verbose) message("Turned ", res_turn$best_out, "->", res_turn$best_in, ", new BIC ", best_sum)
     }
   }
+  if (return_BIC)
+    return (list("graph"=cur_adj_mat, "BIC"=best_sum))
   return (cur_adj_mat)
 }
 
