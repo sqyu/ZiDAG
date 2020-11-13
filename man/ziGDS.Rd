@@ -15,6 +15,7 @@ ziGDS(
   verbose = FALSE,
   no_check_DAG = FALSE,
   return_BIC = FALSE,
+  cache_scores = TRUE,
   control = list()
 )
 }
@@ -38,6 +39,8 @@ ziGDS(
 \item{no_check_DAG}{A logical. If \code{FALSE}, check on whether the resulting graph is acyclic will not be performed in the forward and edge reversing stages.}
 
 \item{return_BIC}{A logical. If \code{TRUE}, returns the estimated matrix along with the minimized BIC.}
+
+\item{cache_scores}{A logical. If \code{TRUE}, nodewise BIC scores will be cached to speed up estimation, at the cost of a memory overhead.}
 
 \item{control}{A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.}
 }

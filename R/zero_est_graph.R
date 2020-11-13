@@ -61,13 +61,15 @@ bic_score <- function(avgnll, n, numpar){
 }
 
 .rm_elt <- function(vec, elt) {return (vec[vec != elt])}
+.parent_to_str <- function(parents) {ifelse(length(parents) == 0, "0", paste(parents, collapse=","))}
 
-.add_edge <- function(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, no_check_DAG, control=list()){
+.add_edge <- function(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, no_check_DAG, score_cache, control=list()){
   if (!requireNamespace("ggm", quietly = TRUE))
     stop("Please install package \"ggm\".")
   best_in <- best_out <- -1
   best_decrease <- 0
   best_new_score <- Inf
+  best_new_right <- NULL
   m <- ncol(V); n <- nrow(V)
   for (ii in 1:m){
     if (degrees[ii] < maxDegree && length(in_edges[[ii]]) < maxInDegree){
@@ -75,18 +77,27 @@ bic_score <- function(avgnll, n, numpar){
         if (degrees[oi] < maxDegree && (is.null(fixedGaps) || !fixedGaps[oi,ii])) {
           if (!(ii %in% in_edges[[oi]]) && (no_check_DAG || !.hasPath(ii, oi, in_edges, cur_adj_mat))){
             cur_adj_mat[oi, ii] <- 1
+            new_right <- sort(c(oi, in_edges[[ii]]))
             if (!is.na(add_dec[oi, ii])){
               dec <- add_dec[oi, ii]
               new_score <- nodewise_score[ii] - dec
-            }
-            else{
-              new_score <- bic_from_fit(zi_fit(V, Y, left=ii, right=c(oi, in_edges[[ii]]), parametrization=parametrization, value_only=FALSE, control=control))
+            } else{
+              right_str <- .parent_to_str(new_right)
+              if (is.null(score_cache))
+                new_score <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right, parametrization=parametrization, value_only=FALSE, control=control))
+              else {
+                new_score <- score_cache[[ii]][[right_str]]
+                if (is.null(new_score)) {
+                  new_score <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right, parametrization=parametrization, value_only=FALSE, control=control))
+                  score_cache[[ii]][[right_str]] <- new_score
+                }
+              }
               dec <- nodewise_score[ii] - new_score
               add_dec[oi,ii] <- dec
             }
             if (dec > best_decrease){
               best_in <- ii; best_out <- oi;  best_new_score <- new_score
-              best_decrease <- dec
+              best_decrease <- dec; best_new_right <- new_right
             }
             cur_adj_mat[oi, ii] <- 0
           }
@@ -94,41 +105,53 @@ bic_score <- function(avgnll, n, numpar){
       }
     }
   }
-  return (list("best_in"=best_in, "best_out"=best_out, "best_decrease"=best_decrease,
-               "best_new_score"=best_new_score, "add_dec"=add_dec))
+  return (list("best_in"=best_in, "best_out"=best_out, "best_new_right"=best_new_right, "best_decrease"=best_decrease,
+               "best_new_score"=best_new_score, "add_dec"=add_dec, "score_cache"=score_cache))
 }
 
-.remove_edge <- function(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, rem_dec, control=list()){
+.remove_edge <- function(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, rem_dec, score_cache, control=list()){
   best_in <- best_out <- -1
   best_decrease <- 0
   best_new_score <- Inf
+  best_new_right <- NULL
   n <- nrow(V); m <- ncol(V)
   for (ii in 1:m){
     for (oi in in_edges[[ii]]){
+      new_right <- .rm_elt(in_edges[[ii]], oi)
       if (!is.na(rem_dec[oi,ii])){
         dec <- rem_dec[oi,ii]
         new_score <- nodewise_score[ii] - dec
       } else {
-        new_score <- bic_from_fit(zi_fit(V, Y, ii, .rm_elt(in_edges[[ii]], oi), parametrization=parametrization, value_only=FALSE, control=control))
+        right_str <- .parent_to_str(new_right)
+        if (is.null(score_cache))
+          new_score <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right, parametrization=parametrization, value_only=FALSE, control=control))
+        else {
+          new_score <- score_cache[[ii]][[right_str]]
+          if (is.null(new_score)) {
+            new_score <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right, parametrization=parametrization, value_only=FALSE, control=control))
+            score_cache[[ii]][[right_str]] <- new_score
+          }
+        }
         dec <- nodewise_score[ii] - new_score
         rem_dec[oi,ii] <- dec
       }
       if (dec > best_decrease){
         best_in <- ii; best_out <- oi;  best_new_score <- new_score
-        best_decrease <- dec
+        best_decrease <- dec; best_new_right <- new_right
       }
     }
   }
-  return (list("best_in"=best_in, "best_out"=best_out, "best_decrease"=best_decrease,
-               "best_new_score"=best_new_score, "rem_dec"=rem_dec))
+  return (list("best_in"=best_in, "best_out"=best_out, "best_new_right"=best_new_right, "best_decrease"=best_decrease,
+               "best_new_score"=best_new_score, "rem_dec"=rem_dec, "score_cache"=score_cache))
 }
 
-.turn_edge <- function(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, add_dec, rem_dec, maxInDegree, no_check_DAG, control=list()){
+.turn_edge <- function(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, add_dec, rem_dec, maxInDegree, no_check_DAG, score_cache, control=list()){
   if (!requireNamespace("ggm", quietly = TRUE))
     stop("Please install package \"ggm\".")
   best_in <- best_out <- -1
   best_decrease <- 0
   best_new_score_in <- best_new_score_out <- Inf
+  best_new_right_ii <- best_new_right_oi <- NULL
   m <- ncol(V); n <- nrow(V)
   for (ii in 1:m){
     for (oi in in_edges[[ii]]){
@@ -137,19 +160,39 @@ bic_score <- function(avgnll, n, numpar){
       if (no_check_DAG || !.hasPath(oi, ii, in_edges, cur_adj_mat)){
         cur_adj_mat[ii, oi] <- 1
         cur_adj_mat[oi, ii] <- 0
+        new_right_ii <- .rm_elt(in_edges[[ii]], oi)
         if (!is.na(rem_dec[oi,ii])){
           dec_in <- rem_dec[oi,ii]
           new_score_in <- nodewise_score[ii] - dec_in
         } else {
-          new_score_in <- bic_from_fit(zi_fit(V, Y, ii, .rm_elt(in_edges[[ii]], oi), parametrization=parametrization, value_only=FALSE, control=control))
+          right_str <- .parent_to_str(new_right_ii)
+          if (is.null(score_cache))
+            new_score_in <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right_ii, parametrization=parametrization, value_only=FALSE, control=control))
+          else {
+            new_score_in <- score_cache[[ii]][[right_str]]
+            if (is.null(new_score_in)) {
+              new_score_in <- bic_from_fit(zi_fit(V, Y, left=ii, right=new_right_ii, parametrization=parametrization, value_only=FALSE, control=control))
+              score_cache[[ii]][[right_str]] <- new_score_in
+            }
+          }
           dec_in <- nodewise_score[ii] - new_score_in
           rem_dec[oi,ii] <- dec_in
         }
+        new_right_oi <- sort(c(ii,in_edges[[oi]]))
         if (!is.na(add_dec[ii,oi])){
           dec_out <- add_dec[ii,oi]
           new_score_out <- nodewise_score[oi] - dec_out
         } else {
-          new_score_out <- bic_from_fit(zi_fit(V, Y, oi, c(ii,in_edges[[oi]]), parametrization=parametrization, value_only=FALSE, control=control))
+          right_str <- .parent_to_str(new_right_oi)
+          if (is.null(score_cache))
+            new_score_out <- bic_from_fit(zi_fit(V, Y, left=oi, right=new_right_oi, parametrization=parametrization, value_only=FALSE, control=control))
+          else {
+            new_score_out <- score_cache[[oi]][[right_str]]
+            if (is.null(new_score_out)) {
+              new_score_out <- bic_from_fit(zi_fit(V, Y, left=oi, right=new_right_oi, parametrization=parametrization, value_only=FALSE, control=control))
+              score_cache[[oi]][[right_str]] <- new_score_out
+            }
+          }
           dec_out <- nodewise_score[oi] - new_score_out
           add_dec[ii,oi] <- dec_out
         }
@@ -158,6 +201,8 @@ bic_score <- function(avgnll, n, numpar){
           best_new_score_in <- new_score_in
           best_new_score_out <- new_score_out
           best_decrease <- dec_in+dec_out
+          best_new_right_ii <- new_right_ii
+          best_new_right_oi <- new_right_oi
         }
         cur_adj_mat[oi, ii] <- 1
         cur_adj_mat[ii, oi] <- 0
@@ -166,7 +211,8 @@ bic_score <- function(avgnll, n, numpar){
   }
   return (list("best_in"=best_in, "best_out"=best_out, "best_decrease"=best_decrease,
                "best_new_score_in"=best_new_score_in, "best_new_score_out"=best_new_score_out,
-               "add_dec"=add_dec, "rem_dec"=rem_dec))
+               "add_dec"=add_dec, "rem_dec"=rem_dec, "score_cache"=score_cache,
+               "best_new_right_ii"=best_new_right_ii, "best_new_right_oi"=best_new_right_oi))
 }
 
 #' Randomly generates DAGs of specified sparsity.
@@ -250,6 +296,7 @@ rand_init_dags <- function(m, init_spars, init_eachs) {
 #' @param verbose A logical, whether to print intermediate steps.
 #' @param no_check_DAG A logical. If \code{FALSE}, check on whether the resulting graph is acyclic will not be performed in the forward and edge reversing stages.
 #' @param return_BIC A logical. If \code{TRUE}, returns the estimated matrix along with the minimized BIC.
+#' @param cache_scores A logical. If \code{TRUE}, nodewise BIC scores will be cached to speed up estimation, at the cost of a memory overhead.
 #' @param control A list passed to \code{zi_fit()}. Please consult \code{?zi_fit}.
 #' @details
 #' Performs greedy DAG search for DAGs for zero-inflated data based on Hurdle conditionals.
@@ -276,11 +323,11 @@ rand_init_dags <- function(m, init_spars, init_eachs) {
 #'     control=list("max_uniform_degree"=2L, "tol"=1e-8, "print_best_degree"=FALSE))
 #' adj_mat == est
 #' @export
-ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDegree=Inf, init=NULL, verbose=FALSE, no_check_DAG=FALSE, return_BIC=FALSE, control=list()){
+ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDegree=Inf, init=NULL, verbose=FALSE, no_check_DAG=FALSE, return_BIC=FALSE, cache_scores=TRUE, control=list()){
   if (!requireNamespace("ggm", quietly = TRUE))
     stop("Please install package \"ggm\".")
   if (!all(dim(V)==dim(Y))) stop("V and Y must have the same dimension.")
-  n <- nrow(V); m <- ncol(V)
+  m <- ncol(V)
   maxDegree <- min(m-1, maxDegree)
   maxInDegree <- min(m-1, maxInDegree)
   if (maxInDegree > maxDegree)
@@ -294,23 +341,33 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       stop("fixedGaps must be a symmetric matrix.")
     }
   }
-  # If init is a list of init matrices
-  if (is.list(init)){
-    est_adj <- NULL; best_BIC <- Inf
-    for (init_i in 1:length(init)) {
-      if (verbose) message("Initial matrix #", init_i, ":")
-      tmp_est <- ziGDS(V, Y, return_BIC=TRUE, parametrization=parametrization,
-                        fixedGaps=fixedGaps, maxDegree=maxDegree, maxInDegree=maxInDegree,
-                        init=init[[init_i]], verbose=verbose, no_check_DAG=no_check_DAG, control=control)
-      if (tmp_est$BIC < best_BIC) {
-        est_adj <- tmp_est$graph; best_BIC <- tmp_est$BIC
-      }
+  if (cache_scores)
+    score_cache <- lapply(1:m, function(i){hash::hash()})
+  else
+    score_cache <- NULL
+  # If init is not a list of init matrices
+  if (!is.list(init))
+    init <- list(init)
+  est_adj <- NULL; best_BIC <- Inf
+  for (init_i in 1:length(init)) {
+    if (verbose) message("Initial matrix #", init_i, ":")
+    tmp_est <- .ziGDS_help(V, Y, parametrization=parametrization,
+                          fixedGaps=fixedGaps, maxDegree=maxDegree, maxInDegree=maxInDegree,
+                          init=init[[init_i]], verbose=verbose, no_check_DAG=no_check_DAG,
+                          score_cache=score_cache, control=control)
+    if (tmp_est$BIC < best_BIC) {
+      est_adj <- tmp_est$graph; best_BIC <- tmp_est$BIC
     }
-    if (return_BIC)
-      return (list("graph"=est_adj, "BIC"=best_BIC))
-    return (est_adj)
+    score_cache <- tmp_est$score_cache
   }
-  # If init is a single matrix or NULL
+  if (return_BIC)
+    return (list("graph"=est_adj, "BIC"=best_BIC))
+  return (est_adj)
+}
+
+.ziGDS_help <- function(V, Y, parametrization, fixedGaps, maxDegree, maxInDegree, init, verbose, no_check_DAG, score_cache, control){
+  m <- ncol(V)
+  # If init is NNULL
   if (is.null(init)){
     cur_adj_mat <- matrix(0,m,m)
     in_edges <- lapply(1:m, function(i){integer(0)})
@@ -351,6 +408,9 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
     stop("Initial graph must be acyclic.")
   degrees <- rowSums(cur_adj_mat) + colSums(cur_adj_mat)  # only need the degree, not the list
   nodewise_score <- sapply(1:m, function(i){bic_from_fit(zi_fit(V, Y, left=i, right=in_edges[[i]], parametrization=parametrization, value_only=FALSE, control=control))})
+  if (!is.null(score_cache))
+    for (i in 1:m)
+      score_cache[[i]][[.parent_to_str(in_edges[[i]])]] <- nodewise_score[i]
   old_best_sum <- Inf
   best_sum <- sum(nodewise_score)
   iter_count <- 0
@@ -360,7 +420,7 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
     iter_count <- iter_count + 1
     if (verbose){message("Iteration ", iter_count, ": BIC score ", old_best_sum)}
     while (TRUE){
-      res_add <- .add_edge(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, no_check_DAG, control)
+      res_add <- .add_edge(V, Y, parametrization, in_edges, degrees, cur_adj_mat, nodewise_score, add_dec, maxDegree, maxInDegree, fixedGaps, no_check_DAG, score_cache, control)
       if (res_add$best_in == -1){
         break
       }
@@ -370,13 +430,14 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       cur_adj_mat[res_add$best_out, res_add$best_in] <- 1
       add_dec[,res_add$best_in] <- NA; rem_dec[,res_add$best_in] <- NA
       add_dec[res_add$best_in, res_add$best_out] <- NA
-      in_edges[[res_add$best_in]] <- sort(c(in_edges[[res_add$best_in]], res_add$best_out))
+      in_edges[[res_add$best_in]] <- res_add$best_new_right
       degrees[res_add$best_in] <- degrees[res_add$best_in] + 1
       degrees[res_add$best_out] <- degrees[res_add$best_out] + 1
+      score_cache <- res_add$score_cache
       if (verbose) message("Added ", res_add$best_out, "->", res_add$best_in, ", new BIC ", best_sum)
     }
     while (TRUE){
-      res_remove <- .remove_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, rem_dec, control)
+      res_remove <- .remove_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, rem_dec, score_cache, control)
       if (res_remove$best_in == -1){
         break
       }
@@ -385,13 +446,14 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       rem_dec <- res_remove$rem_dec
       cur_adj_mat[res_remove$best_out, res_remove$best_in] <- 0
       add_dec[,res_remove$best_in] <- NA; rem_dec[,res_remove$best_in] <- NA
-      in_edges[[res_remove$best_in]] <- .rm_elt(in_edges[[res_remove$best_in]], res_remove$best_out)
-      degrees[res_add$best_in] <- degrees[res_add$best_in] - 1
-      degrees[res_add$best_out] <- degrees[res_add$best_out] - 1
+      in_edges[[res_remove$best_in]] <- res_remove$best_new_right
+      degrees[res_remove$best_in] <- degrees[res_remove$best_in] - 1
+      degrees[res_remove$best_out] <- degrees[res_remove$best_out] - 1
+      score_cache <- res_remove$score_cache
       if (verbose) message("Removed ", res_remove$best_out, "->", res_remove$best_in, ", new BIC ", best_sum)
     }
     while (TRUE){
-      res_turn <- .turn_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, add_dec, rem_dec, maxInDegree, no_check_DAG, control)
+      res_turn <- .turn_edge(V, Y, parametrization, in_edges, cur_adj_mat, nodewise_score, add_dec, rem_dec, maxInDegree, no_check_DAG, score_cache, control)
       if (res_turn$best_in == -1){
         break
       }
@@ -403,16 +465,14 @@ ziGDS <- function(V, Y, parametrization, fixedGaps=NULL, maxDegree=Inf, maxInDeg
       cur_adj_mat[res_turn$best_in, res_turn$best_out] <- 1
       add_dec[,res_turn$best_in] <- NA; rem_dec[,res_turn$best_in] <- NA
       add_dec[,res_turn$best_out] <- NA; rem_dec[,res_turn$best_out] <- NA
-      in_edges[[res_turn$best_in]] <- .rm_elt(in_edges[[res_turn$best_in]], res_turn$best_out)
-      in_edges[[res_turn$best_out]] <- sort(c(in_edges[[res_turn$best_out]], res_turn$best_in))
+      in_edges[[res_turn$best_in]] <- res_turn$best_new_right_ii
+      in_edges[[res_turn$best_out]] <- res_turn$best_new_right_oi
+      score_cache <- res_turn$score_cache
       if (verbose) message("Turned ", res_turn$best_out, "->", res_turn$best_in, ", new BIC ", best_sum)
     }
   }
-  if (return_BIC)
-    return (list("graph"=cur_adj_mat, "BIC"=best_sum))
-  return (cur_adj_mat)
+  return (list("graph"=cur_adj_mat, "BIC"=best_sum, "score_cache"=score_cache))
 }
-
 
 ########################## SIMY ##########################
 
