@@ -214,7 +214,7 @@ gen_zero_dat <- function(seed, gen_para, adj_mat, n, k_mode=1, min_num=10, theru
         } else if (k_mode == 1) {true_k_j <- 1
         } else if (k_mode == 2) {true_k_j <- j
         } else {stop("Bad k_mode specified.")}
-        true_gg_j <- c(0, rep(1, 2 * length(jks))) #c(log(true_k_j/2/pi)/2, rep(g_strength, 2 * length(jks)))
+        true_gg_j <- c(0, rep(1, length(jks)), rep(-1, length(jks))) #c(0, rep(1, 2 * length(jks))) #c(log(true_k_j/2/pi)/2, rep(g_strength, 2 * length(jks)))
         true_hh_j <- c(0,rep(1 * true_k_j, 2 * length(jks))) ## To stabilize the mean
         gs <- sum_A_mat(true_gg_j, V[,jks], Y[,jks])
         hs <- sum_B_mat(true_hh_j, V[,jks], Y[,jks])
